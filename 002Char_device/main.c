@@ -5,8 +5,39 @@
 dev_t device_number;
 
 struct cdev pcd_cdev;
+
+loff_t pcd_llseek (struct file *filep, loff_t offset, int whence)
+{
+	return 0;
+};
+
+ssize_t pcd_read (struct file *filep, char __user *buf, size_t count, loff_t * offset)
+{
+	return 0;
+};
+
+ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, loff_t * offset)
+{
+	return 0;
+};
+
+int pcd_open (struct inode *inodep, struct file *filep)
+{
+	return 0;
+};
+
+int pcd_release (struct inode *inodep, struct file *filep)
+{
+	return 0;
+};
+
 struct file_operations pcd_fops = {
 	.owner = THIS_MODULE,
+	.open = pcd_open,
+	.release = pcd_release,
+	.read = pcd_read,
+	.write = pcd_write,
+	.llseek = pcd_llseek,
 };
 
 static int __init pcd_module_init(void)
