@@ -5,6 +5,8 @@
 dev_t device_number;
 
 struct cdev pcd_cdev;
+struct class * pcd_class;
+struct device * pcd_dev;
 
 loff_t pcd_llseek (struct file *filep, loff_t offset, int whence)
 {
@@ -59,6 +61,13 @@ static int __init pcd_module_init(void)
 	/* we want to register char device to VFS. */ 
 	cdev_add( &pcd_cdev, device_number, 1);
 
+	/* since we have registered our char dev information and device number to VFS using cdev_add, 
+	 we want to create device file. 
+	 we can expose our device file information, which is device number to sysfs directory so that 
+	 udev program will create device file.*/
+
+	pcd_class = class_create(pcd_cdev.owner, "pcd_class");
+	pcd_dev = device_create( pcd_class, NULL, device_number, NULL, "pcd_dev");
 
 	return 0;
 }
