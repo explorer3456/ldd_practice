@@ -8,28 +8,36 @@ struct cdev pcd_cdev;
 struct class * pcd_class;
 struct device * pcd_dev;
 
+#undef pr_fmt
+#define pr_fmt(fmt) "[PCD_DEV][%s] : " fmt, __func__
+
 loff_t pcd_llseek (struct file *filep, loff_t offset, int whence)
 {
+	pr_info("\n");
 	return 0;
 };
 
 ssize_t pcd_read (struct file *filep, char __user *buf, size_t count, loff_t * offset)
 {
+	pr_info("\n");
 	return 0;
 };
 
 ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, loff_t * offset)
 {
+	pr_info("\n");
 	return 0;
 };
 
 int pcd_open (struct inode *inodep, struct file *filep)
 {
+	pr_info("\n");
 	return 0;
 };
 
 int pcd_release (struct inode *inodep, struct file *filep)
 {
+	pr_info("\n");
 	return 0;
 };
 
@@ -74,6 +82,12 @@ static int __init pcd_module_init(void)
 
 static void __exit pcd_module_exit(void)
 {
+	device_destroy( pcd_class, device_number);
+	class_destroy( pcd_class ); 
+	cdev_del( &pcd_cdev );
+	unregister_chrdev_region( device_number, 1);
+
+	pr_info("moduel cleanup\n");
 }
 
 module_init(pcd_module_init);
