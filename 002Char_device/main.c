@@ -1,6 +1,13 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
+#include <linux/uaccess.h>
+#include <uapi/asm-generic/errno-base.h>
+
+#define DEV_MEM_SIZE	512
+
+// including EOF (DEV MEM SIZE + 1)
+static char pcdev_buffer[DEV_MEM_SIZE + 1];
 
 dev_t device_number;
 
@@ -11,19 +18,48 @@ struct device * pcd_dev;
 #undef pr_fmt
 #define pr_fmt(fmt) "[PCD_DEV][%s] : " fmt, __func__
 
-loff_t pcd_llseek (struct file *filep, loff_t offset, int whence)
+loff_t pcd_llseek (struct file *filep, loff_t f_pos, int whence)
 {
 	pr_info("\n");
 	return 0;
 };
 
-ssize_t pcd_read (struct file *filep, char __user *buf, size_t count, loff_t * offset)
+ssize_t pcd_read (struct file *filep, char __user *buf, size_t count, loff_t * f_pos)
 {
+	int count_adj;
+	int read_bytes;
+
+	read_bytes = 0;
+	count_adj = count;
+	// check count value valid.
+
+	pr_info("user request: %zu\n", count);
+	pr_info("current file position: %lld\n", *f_pos);
+
+	if ( ((*f_pos) + count_adj) > DEV_MEM_SIZE) {
+		// adjust count
+		count_adj = DEV_MEM_SIZE - (*f_pos);
+		pr_info("adjust count to : %d\n", count_adj);
+	}
+
+	read_bytes = copy_to_user(buf, (void *)pcdev_buffer + (*f_pos), count_adj);
+	// there is some error.
+	if (read_bytes < 0 ) {
+		return -EFAULT;
+	}
+
+	// update file position.
+	*f_pos = *f_pos + count_adj;
+	pr_info("read bytes: %d\n", read_bytes);
+	pr_info("updated file position to : %lld\n", *f_pos);
+
+	// copy to user.
 	pr_info("\n");
-	return 0;
+
+	return read_bytes;
 };
 
-ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, loff_t * offset)
+ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, loff_t * f_pos)
 {
 	pr_info("\n");
 	return 0;
