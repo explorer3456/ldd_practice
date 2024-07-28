@@ -43,7 +43,7 @@ ssize_t pcd_read (struct file *filep, char __user *buf, size_t count, loff_t * f
 	}
 
 	read_bytes = copy_to_user(buf, (void *)pcdev_buffer + (*f_pos), count_adj);
-	// there is some error.
+	// there is some error. Address error.
 	if (read_bytes < 0 ) {
 		return -EFAULT;
 	}
@@ -54,14 +54,42 @@ ssize_t pcd_read (struct file *filep, char __user *buf, size_t count, loff_t * f
 	pr_info("updated file position to : %lld\n", *f_pos);
 
 	// copy to user.
-	pr_info("\n");
 
 	return read_bytes;
 };
 
 ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, loff_t * f_pos)
 {
-	pr_info("\n");
+	int count_adj;
+	int write_bytes;
+
+	pr_info("user request: %zu\n", count);
+	pr_info("current file position: %lld\n", *f_pos);
+
+	count_adj = count;
+
+
+	if ( (*f_pos) + count_adj > DEV_MEM_SIZE) {
+		count_adj = DEV_MEM_SIZE - (*f_pos);
+	}
+
+	// end of file
+	if (count_adj == 0)
+		return -ENOMEM;
+
+	write_bytes = copy_from_user( (void *)pcdev_buffer + (*f_pos), buf, count_adj);
+
+	// there is some error. Address error.
+	if (write_bytes < 0) {
+		return -EFAULT;
+	}
+
+	// update file position.
+	*f_pos = *f_pos + count_adj;
+
+	pr_info("write bytes: %d\n", write_bytes);
+	pr_info("updated file position to : %lld\n", *f_pos);
+
 	return 0;
 };
 
