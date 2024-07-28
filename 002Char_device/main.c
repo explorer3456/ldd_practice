@@ -181,9 +181,15 @@ static int __init pcd_module_init(void)
 {
 	int ret;
 
+	ret = 0;
+
 	/* device number */
 	/* we need device number to register our device file to VFS. That is why we allocate device number */ 
 	ret = alloc_chrdev_region( &device_number, 0, 1, "pcd_device_num");
+	if (ret < 0) {
+		pr_err("alloc chrdev region failed: %d\n", ret);
+		goto err_chrdev_fail;
+	}
 
 	pr_info("major: %d, minor: %d \n", MAJOR(device_number), MINOR(device_number));
 
@@ -194,7 +200,11 @@ static int __init pcd_module_init(void)
 	pcd_cdev.owner = THIS_MODULE;
 
 	/* we want to register char device to VFS. */ 
-	cdev_add( &pcd_cdev, device_number, 1);
+	ret = cdev_add( &pcd_cdev, device_number, 1);
+	if (ret < 0) {
+		pr_err("cdev add failed: %d\n", ret);
+		goto err_cdev_add_fail;
+	}
 
 	/* since we have registered our char dev information and device number to VFS using cdev_add, 
 	 we want to create device file. 
@@ -202,9 +212,27 @@ static int __init pcd_module_init(void)
 	 udev program will create device file.*/
 
 	pcd_class = class_create(pcd_cdev.owner, "pcd_class");
+	if (IS_ERR(pcd_class)) {
+		ret = PTR_ERR(pcd_class);
+		pr_err("class create failed: %ld\n", ret);
+		goto err_class_fail;
+	}
 	pcd_dev = device_create( pcd_class, NULL, device_number, NULL, "pcd_dev");
+	if (IS_ERR(pcd_dev)) {
+		ret = PTR_ERR(pcd_dev);
+		pr_err("device create failed: %ld\n", ret);
+		goto err_device_fail;
+	}
 
-	return 0;
+err_device_fail:
+	class_destroy(pcd_class);
+err_class_fail:
+	cdev_del( &pcd_cdev );
+err_cdev_add_fail:
+	unregister_chrdev_region( device_number, 1);
+err_chrdev_fail:
+	pr_err("module init failed: %d\n", ret);
+	return ret;
 }
 
 static void __exit pcd_module_exit(void)
