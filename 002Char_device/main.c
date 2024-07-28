@@ -90,19 +90,23 @@ ssize_t pcd_read (struct file *filep, char __user *buf, size_t count, loff_t * f
 		read_bytes = copy_to_user(buf, (void *)pcdev_buffer + (*f_pos), count_adj);
 
 		// there is some error. Address error.
-		if (read_bytes < 0 ) {
-			return -EFAULT;
+		if (read_bytes != 0) {
+			if (read_bytes < 0 ) {
+				return -EFAULT;
+			} else if (read_bytes > 0 ) {
+				pr_info("ERROR. copy  to use failed: %d\n", read_bytes);
+			}
+
 		}
 	}
 
 	// update file position.
 	*f_pos = *f_pos + count_adj;
-	pr_info("read bytes: %d\n", read_bytes);
 	pr_info("updated file position to : %lld\n", *f_pos);
 
 	// copy to user.
 
-	return read_bytes;
+	return count_adj;;
 };
 
 ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, loff_t * f_pos)
@@ -118,11 +122,14 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 
 	if ( (*f_pos) + count_adj > DEV_MEM_SIZE) {
 		count_adj = DEV_MEM_SIZE - (*f_pos);
+		pr_info("adjust count to : %d\n", count_adj);
 	}
 
 	// end of file
-	if (count_adj == 0)
+	if (count_adj == 0) {
+		pr_err("No space left in device\n");
 		return -ENOMEM;
+	}
 
 
 	// if f_pos is end of file, dont access to that location.
@@ -130,18 +137,23 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 		write_bytes = copy_from_user( (void *)pcdev_buffer + (*f_pos), buf, count_adj);
 
 		// there is some error. Address error.
-		if (write_bytes < 0) {
-			return -EFAULT;
+		// or there are some bytes that cannot be coppied.
+		if ( (write_bytes != 0) ) {
+
+			if (write_bytes < 0 ) {
+				return -EFAULT;
+			} else if (write_bytes > 0 ) {
+				pr_info("ERROR. copy from user failed: %d\n", write_bytes);
+			}
 		}
 	}
 
 	// update file position.
 	*f_pos = *f_pos + count_adj;
 
-	pr_info("write bytes: %d\n", write_bytes);
 	pr_info("updated file position to : %lld\n", *f_pos);
 
-	return 0;
+	return count_adj;
 };
 
 int pcd_open (struct inode *inodep, struct file *filep)
