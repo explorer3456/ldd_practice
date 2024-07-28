@@ -6,9 +6,59 @@
 #include <uapi/linux/fs.h>
 
 #define DEV_MEM_SIZE	8
+#define NUM_OF_DEVICES	4
+
+static char pcdev0_buffer[DEV_MEM_SIZE];
+static char pcdev1_buffer[DEV_MEM_SIZE];
+static char pcdev2_buffer[DEV_MEM_SIZE];
+static char pcdev3_buffer[DEV_MEM_SIZE];
+
+// since there are multiple devices, we should keep device information 
+// to array.
+struct pcdev_private_data {
+	char * buffer;
+	unsigned int size;
+	const char * serial_number;
+	int perm;
+	struct cdev pcd_cdev;
+};
+
+struct pcdrv_private_data {
+	int total_devices;
+	struct pcdev_private_data pcdev_priv[NUM_OF_DEVICES];
+};
+
+struct pcdrv_private_data pcdrv_priv = {
+	.total_devices = NUM_OF_DEVICES,
+	.pcdev_priv[0] = {
+		.buffer = pcdev0_buffer,
+		.size = 0,
+		.serial_number = "pcdev-serial0",
+		.perm = 0,
+	},
+	.pcdev_priv[1] = {
+		.buffer = pcdev1_buffer,
+		.size = 0,
+		.serial_number = "pcdev-serial1",
+		.perm = 0,
+	},
+	.pcdev_priv[2] = {
+		.buffer = pcdev2_buffer,
+		.size = 0,
+		.serial_number = "pcdev-serial2",
+		.perm = 0,
+	},
+	.pcdev_priv[3] = {
+		.buffer = pcdev3_buffer,
+		.size = 0,
+		.serial_number = "pcdev-serial3",
+		.perm = 0,
+	},
+};
 
 // including EOF (DEV MEM SIZE + 1)
 static char pcdev_buffer[DEV_MEM_SIZE];
+// static char pcdev_buffer[DEV_MEM_SIZE];
 
 dev_t device_number;
 
@@ -180,56 +230,79 @@ struct file_operations pcd_fops = {
 static int __init pcd_module_init(void)
 {
 	int ret;
+	int i;
+	int cdev_fail_idx;
+	int dev_create_fail_idx;
 
 	ret = 0;
+	cdev_fail_idx = 0;
+	dev_create_fail_idx = 0;
 
 	/* device number */
 	/* we need device number to register our device file to VFS. That is why we allocate device number */ 
-	ret = alloc_chrdev_region( &device_number, 0, 1, "pcd_device_num");
+	ret = alloc_chrdev_region( &device_number, 0, NUM_OF_DEVICES, "pcd_device_num");
 	if (ret < 0) {
 		pr_err("alloc chrdev region failed: %d\n", ret);
 		goto err_chrdev_fail;
 	}
 
-	pr_info("major: %d, minor: %d \n", MAJOR(device_number), MINOR(device_number));
+	pr_info("devnumber: %08x, major: %d, minor: %d \n", device_number, MAJOR(device_number), MINOR(device_number));
 
-	/* cdev init. */
-	/* we want to register our device to VFS. That is why we initialize cdev. */
-	cdev_init( &pcd_cdev, &pcd_fops);
+	for (i=0; i<NUM_OF_DEVICES; i++) {
+		/* cdev init. */
+		/* we want to register our device to VFS. That is why we initialize cdev. */
+		cdev_init( &(pcdrv_priv.pcdev_priv[i].pcd_cdev), &pcd_fops);
+		pcdrv_priv.pcdev_priv[i].pcd_cdev.owner = THIS_MODULE;
 
-	pcd_cdev.owner = THIS_MODULE;
-
-	/* we want to register char device to VFS. */ 
-	ret = cdev_add( &pcd_cdev, device_number, 1);
-	if (ret < 0) {
-		pr_err("cdev add failed: %d\n", ret);
-		goto err_cdev_add_fail;
+		/* we want to register char device to VFS. */ 
+		ret = cdev_add( &pcdrv_priv.pcdev_priv[i].pcd_cdev, device_number + i, 1);
+		if (ret < 0) {
+			pr_err("cdev add failed: %d\n", ret);
+			cdev_fail_idx = i;
+			goto err_cdev_add_fail;
+		}
 	}
+
+
 
 	/* since we have registered our char dev information and device number to VFS using cdev_add, 
 	 we want to create device file. 
 	 we can expose our device file information, which is device number to sysfs directory so that 
 	 udev program will create device file.*/
 
-	pcd_class = class_create(pcd_cdev.owner, "pcd_class");
+	/* we need only one class directory. so we add pcdev0 as arguement. */
+	pcd_class = class_create( pcdrv_priv.pcdev_priv[0].pcd_cdev.owner, "pcd_class");
 	if (IS_ERR(pcd_class)) {
 		ret = PTR_ERR(pcd_class);
-		pr_err("class create failed: %ld\n", ret);
+		pr_err("class create failed: %d\n", ret);
 		goto err_class_fail;
 	}
-	pcd_dev = device_create( pcd_class, NULL, device_number, NULL, "pcd_dev");
-	if (IS_ERR(pcd_dev)) {
-		ret = PTR_ERR(pcd_dev);
-		pr_err("device create failed: %ld\n", ret);
-		goto err_device_fail;
+
+	for (i=0; i<NUM_OF_DEVICES; i++){
+		pcd_dev = device_create( pcd_class, NULL, device_number + i, NULL,\
+				pcdrv_priv.pcdev_priv[i].serial_number);
+		if (IS_ERR(pcd_dev)) {
+			ret = PTR_ERR(pcd_dev);
+			dev_create_fail_idx = i;
+			pr_err("device create failed: %d\n", ret);
+			goto err_device_fail;
+		}
 	}
 
 err_device_fail:
+	for(i=0; i<dev_create_fail_idx; i++) {
+		device_destroy( pcd_class, device_number + i);
+	}
 	class_destroy(pcd_class);
 err_class_fail:
-	cdev_del( &pcd_cdev );
+	for (i=0;i<NUM_OF_DEVICES;i++) {
+		cdev_del(&pcdrv_priv.pcdev_priv[i].pcd_cdev);
+	}
 err_cdev_add_fail:
-	unregister_chrdev_region( device_number, 1);
+	for(i=0; i<cdev_fail_idx; i++) {
+		cdev_del(&pcdrv_priv.pcdev_priv[i].pcd_cdev);
+	}
+	unregister_chrdev_region( device_number, NUM_OF_DEVICES);
 err_chrdev_fail:
 	pr_err("module init failed: %d\n", ret);
 	return ret;
