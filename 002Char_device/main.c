@@ -3,11 +3,12 @@
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
 #include <uapi/asm-generic/errno-base.h>
+#include <uapi/linux/fs.h>
 
-#define DEV_MEM_SIZE	512
+#define DEV_MEM_SIZE	8
 
 // including EOF (DEV MEM SIZE + 1)
-static char pcdev_buffer[DEV_MEM_SIZE + 1];
+static char pcdev_buffer[DEV_MEM_SIZE];
 
 dev_t device_number;
 
@@ -18,10 +19,52 @@ struct device * pcd_dev;
 #undef pr_fmt
 #define pr_fmt(fmt) "[PCD_DEV][%s] : " fmt, __func__
 
-loff_t pcd_llseek (struct file *filep, loff_t f_pos, int whence)
+loff_t pcd_llseek (struct file *filep, loff_t offset, int whence)
 {
-	pr_info("\n");
-	return 0;
+	int ret;
+
+	ret = 0;
+
+	pr_info("current file position: %lld\n", filep->f_pos);
+	
+	switch(whence) {
+		case SEEK_SET:
+			if ( (offset > DEV_MEM_SIZE) || (offset < 0) ){
+				pr_info("the address is beyond the address\n");
+				ret = -EINVAL;
+			} else {
+				filep->f_pos = offset;
+			}
+
+			break;
+		case SEEK_CUR:
+			if ( ((filep->f_pos + offset) > DEV_MEM_SIZE) || ( (filep->f_pos + offset) < 0) ) {
+				pr_info("the address is beyond the address\n");
+				ret = -EINVAL;
+			} else {
+				filep->f_pos = filep->f_pos + offset;
+			}
+			break;
+		case SEEK_END:
+			if (offset > 0 ) {
+				pr_info("the address is beyond the address\n");
+				ret = -EINVAL;
+			} else {
+				filep->f_pos = DEV_MEM_SIZE + offset;
+			}
+			break;
+		default:
+			pr_info("unkown whence\n");
+			ret = -EINVAL;
+			break;
+	}
+	pr_info("whence: %d, offset: %lld\n", whence, offset);
+	pr_info("updated file position to : %lld\n", filep->f_pos);
+
+	if (ret < 0 )
+		return ret;
+	else
+		return filep->f_pos;
 };
 
 ssize_t pcd_read (struct file *filep, char __user *buf, size_t count, loff_t * f_pos)
@@ -42,10 +85,14 @@ ssize_t pcd_read (struct file *filep, char __user *buf, size_t count, loff_t * f
 		pr_info("adjust count to : %d\n", count_adj);
 	}
 
-	read_bytes = copy_to_user(buf, (void *)pcdev_buffer + (*f_pos), count_adj);
-	// there is some error. Address error.
-	if (read_bytes < 0 ) {
-		return -EFAULT;
+	// if f_pos is end of file, dont access to that location.
+	if ( ((*f_pos) < DEV_MEM_SIZE) ) {
+		read_bytes = copy_to_user(buf, (void *)pcdev_buffer + (*f_pos), count_adj);
+
+		// there is some error. Address error.
+		if (read_bytes < 0 ) {
+			return -EFAULT;
+		}
 	}
 
 	// update file position.
@@ -67,7 +114,7 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 	pr_info("current file position: %lld\n", *f_pos);
 
 	count_adj = count;
-
+	write_bytes = 0;
 
 	if ( (*f_pos) + count_adj > DEV_MEM_SIZE) {
 		count_adj = DEV_MEM_SIZE - (*f_pos);
@@ -77,11 +124,15 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 	if (count_adj == 0)
 		return -ENOMEM;
 
-	write_bytes = copy_from_user( (void *)pcdev_buffer + (*f_pos), buf, count_adj);
 
-	// there is some error. Address error.
-	if (write_bytes < 0) {
-		return -EFAULT;
+	// if f_pos is end of file, dont access to that location.
+	if ( ((*f_pos) < DEV_MEM_SIZE) ) {
+		write_bytes = copy_from_user( (void *)pcdev_buffer + (*f_pos), buf, count_adj);
+
+		// there is some error. Address error.
+		if (write_bytes < 0) {
+			return -EFAULT;
+		}
 	}
 
 	// update file position.
