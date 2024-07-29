@@ -269,7 +269,7 @@ static int __init pcd_module_init(void)
 	 udev program will create device file.*/
 
 	/* we need only one class directory. so we add pcdev0 as arguement. */
-	pcd_class = class_create( pcdrv_priv.pcdev_priv[0].pcd_cdev.owner, "pcd_class");
+	pcd_class = class_create( THIS_MODULE, "pcd_class");
 	if (IS_ERR(pcd_class)) {
 		ret = PTR_ERR(pcd_class);
 		pr_err("class create failed: %d\n", ret);
@@ -278,7 +278,7 @@ static int __init pcd_module_init(void)
 
 	for (i=0; i<NUM_OF_DEVICES; i++){
 		pcd_dev = device_create( pcd_class, NULL, device_number + i, NULL,\
-				pcdrv_priv.pcdev_priv[i].serial_number);
+				"pcd-dev-create-%d", i);
 		if (IS_ERR(pcd_dev)) {
 			ret = PTR_ERR(pcd_dev);
 			dev_create_fail_idx = i;
