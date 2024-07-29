@@ -263,8 +263,6 @@ static int __init pcd_module_init(void)
 		}
 	}
 
-
-
 	/* since we have registered our char dev information and device number to VFS using cdev_add, 
 	 we want to create device file. 
 	 we can expose our device file information, which is device number to sysfs directory so that 
@@ -289,6 +287,8 @@ static int __init pcd_module_init(void)
 		}
 	}
 
+	return ret;
+
 err_device_fail:
 	for(i=0; i<dev_create_fail_idx; i++) {
 		device_destroy( pcd_class, device_number + i);
@@ -305,6 +305,7 @@ err_cdev_add_fail:
 	unregister_chrdev_region( device_number, NUM_OF_DEVICES);
 err_chrdev_fail:
 	pr_err("module init failed: %d\n", ret);
+
 	return ret;
 }
 
