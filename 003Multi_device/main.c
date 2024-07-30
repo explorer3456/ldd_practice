@@ -26,6 +26,9 @@ struct pcdev_private_data {
 struct pcdrv_private_data {
 	int total_devices;
 	struct pcdev_private_data pcdev_priv[NUM_OF_DEVICES];
+
+	dev_t device_number;
+	struct class * pcd_class;
 };
 
 struct pcdrv_private_data pcdrv_priv = {
@@ -62,8 +65,8 @@ static char pcdev_buffer[DEV_MEM_SIZE];
 
 dev_t device_number;
 
-struct cdev pcd_cdev;
 struct class * pcd_class;
+
 struct device * pcd_dev;
 
 #undef pr_fmt
@@ -240,7 +243,7 @@ static int __init pcd_module_init(void)
 
 	/* device number */
 	/* we need device number to register our device file to VFS. That is why we allocate device number */ 
-	ret = alloc_chrdev_region( &device_number, 0, NUM_OF_DEVICES, "pcd_device_num");
+	ret = alloc_chrdev_region( &pcdrv_priv.device_number, 0, NUM_OF_DEVICES, "pcd_device_num");
 	if (ret < 0) {
 		pr_err("alloc chrdev region failed: %d\n", ret);
 		goto err_chrdev_fail;
@@ -249,7 +252,7 @@ static int __init pcd_module_init(void)
 
 	for (i=0; i<NUM_OF_DEVICES; i++) {
 
-		pr_info("devnumber: %08x, major: %d, minor: %d \n", device_number + i, MAJOR(device_number + i), MINOR(device_number+ i));
+		pr_info("devnumber: %08x, major: %d, minor: %d \n", pcdrv_priv.device_number + i, MAJOR(pcdrv_priv.device_number + i), MINOR(pcdrv_priv.device_number+ i));
 
 		/* cdev init. */
 		/* we want to register our device to VFS. That is why we initialize cdev. */
@@ -257,7 +260,7 @@ static int __init pcd_module_init(void)
 		pcdrv_priv.pcdev_priv[i].pcd_cdev.owner = THIS_MODULE;
 
 		/* we want to register char device to VFS. */ 
-		ret = cdev_add( &pcdrv_priv.pcdev_priv[i].pcd_cdev, device_number + i, 1);
+		ret = cdev_add( &pcdrv_priv.pcdev_priv[i].pcd_cdev, pcdrv_priv.device_number + i, 1);
 		if (ret < 0) {
 			pr_err("cdev add failed: %d\n", ret);
 			cdev_fail_idx = i;
@@ -271,15 +274,15 @@ static int __init pcd_module_init(void)
 	 udev program will create device file.*/
 
 	/* we need only one class directory. so we add pcdev0 as arguement. */
-	pcd_class = class_create( THIS_MODULE, "pcd_class");
-	if (IS_ERR(pcd_class)) {
-		ret = PTR_ERR(pcd_class);
+	pcdrv_priv.pcd_class = class_create( THIS_MODULE, "pcd_class");
+	if (IS_ERR(pcdrv_priv.pcd_class)) {
+		ret = PTR_ERR(pcdrv_priv.pcd_class);
 		pr_err("class create failed: %d\n", ret);
 		goto err_class_fail;
 	}
 
 	for (i=0; i<NUM_OF_DEVICES; i++){
-		pcd_dev = device_create( pcd_class, NULL, device_number + i, NULL,\
+		pcd_dev = device_create( pcdrv_priv.pcd_class, NULL, pcdrv_priv.device_number + i, NULL,\
 				"pcd-dev-create-%d", i);
 		if (IS_ERR(pcd_dev)) {
 			ret = PTR_ERR(pcd_dev);
@@ -294,9 +297,9 @@ static int __init pcd_module_init(void)
 err_device_fail:
 	pr_err("err device fail\n");
 	for(i=0; i<NUM_OF_DEVICES; i++) {
-		device_destroy( pcd_class, device_number + i);
+		device_destroy( pcdrv_priv.pcd_class, pcdrv_priv.device_number + i);
 	}
-	class_destroy(pcd_class);
+	class_destroy( pcdrv_priv.pcd_class);
 err_class_fail:
 	pr_err("err class fail\n");
 err_cdev_add_fail:
@@ -304,7 +307,7 @@ err_cdev_add_fail:
 	for(i=0; i<NUM_OF_DEVICES; i++) {
 		cdev_del(&pcdrv_priv.pcdev_priv[i].pcd_cdev);
 	}
-	unregister_chrdev_region( device_number, NUM_OF_DEVICES);
+	unregister_chrdev_region( pcdrv_priv.device_number, NUM_OF_DEVICES);
 err_chrdev_fail:
 	pr_err("module init failed: %d\n", ret);
 
@@ -316,14 +319,14 @@ static void __exit pcd_module_exit(void)
 	int i;
 	
 	for(i=0; i<NUM_OF_DEVICES; i++) {
-		device_destroy( pcd_class, device_number + i);
+		device_destroy( pcdrv_priv.pcd_class, pcdrv_priv.device_number + i);
 	}
-	class_destroy( pcd_class ); 
+	class_destroy( pcdrv_priv.pcd_class ); 
 
 	for(i=0; i<NUM_OF_DEVICES; i++) {
 		cdev_del( &pcdrv_priv.pcdev_priv[i].pcd_cdev);
 	}
-	unregister_chrdev_region( device_number, NUM_OF_DEVICES);
+	unregister_chrdev_region( pcdrv_priv.device_number, NUM_OF_DEVICES);
 
 	pr_info("moduel cleanup\n");
 }
