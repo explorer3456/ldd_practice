@@ -246,9 +246,11 @@ static int __init pcd_module_init(void)
 		goto err_chrdev_fail;
 	}
 
-	pr_info("devnumber: %08x, major: %d, minor: %d \n", device_number, MAJOR(device_number), MINOR(device_number));
 
 	for (i=0; i<NUM_OF_DEVICES; i++) {
+
+		pr_info("devnumber: %08x, major: %d, minor: %d \n", device_number + i, MAJOR(device_number + i), MINOR(device_number+ i));
+
 		/* cdev init. */
 		/* we want to register our device to VFS. That is why we initialize cdev. */
 		cdev_init( &(pcdrv_priv.pcdev_priv[i].pcd_cdev), &pcd_fops);
@@ -290,16 +292,16 @@ static int __init pcd_module_init(void)
 	return ret;
 
 err_device_fail:
-	for(i=0; i<dev_create_fail_idx; i++) {
+	pr_err("err device fail\n");
+	for(i=0; i<NUM_OF_DEVICES; i++) {
 		device_destroy( pcd_class, device_number + i);
 	}
 	class_destroy(pcd_class);
 err_class_fail:
-	for (i=0;i<NUM_OF_DEVICES;i++) {
-		cdev_del(&pcdrv_priv.pcdev_priv[i].pcd_cdev);
-	}
+	pr_err("err class fail\n");
 err_cdev_add_fail:
-	for(i=0; i<cdev_fail_idx; i++) {
+	pr_err("err cdev add fail\n");
+	for(i=0; i<NUM_OF_DEVICES; i++) {
 		cdev_del(&pcdrv_priv.pcdev_priv[i].pcd_cdev);
 	}
 	unregister_chrdev_region( device_number, NUM_OF_DEVICES);
@@ -311,6 +313,7 @@ err_chrdev_fail:
 
 static void __exit pcd_module_exit(void)
 {
+	int i;
 	device_destroy( pcd_class, device_number);
 	class_destroy( pcd_class ); 
 	cdev_del( &pcd_cdev );
