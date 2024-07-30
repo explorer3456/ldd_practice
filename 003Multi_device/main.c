@@ -314,10 +314,16 @@ err_chrdev_fail:
 static void __exit pcd_module_exit(void)
 {
 	int i;
-	device_destroy( pcd_class, device_number);
+	
+	for(i=0; i<NUM_OF_DEVICES; i++) {
+		device_destroy( pcd_class, device_number + i);
+	}
 	class_destroy( pcd_class ); 
-	cdev_del( &pcd_cdev );
-	unregister_chrdev_region( device_number, 1);
+
+	for(i=0; i<NUM_OF_DEVICES; i++) {
+		cdev_del( &pcdrv_priv.pcdev_priv[i].pcd_cdev);
+	}
+	unregister_chrdev_region( device_number, NUM_OF_DEVICES);
 
 	pr_info("moduel cleanup\n");
 }
