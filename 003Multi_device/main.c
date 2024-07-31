@@ -37,25 +37,25 @@ struct pcdrv_private_data pcdrv_priv = {
 		.buffer = pcdev0_buffer,
 		.size = 0,
 		.serial_number = "pcdev-serial0",
-		.perm = 0,
+		.perm = 0x101,
 	},
 	.pcdev_priv[1] = {
 		.buffer = pcdev1_buffer,
 		.size = 0,
 		.serial_number = "pcdev-serial1",
-		.perm = 0,
+		.perm = 0x202,
 	},
 	.pcdev_priv[2] = {
 		.buffer = pcdev2_buffer,
 		.size = 0,
 		.serial_number = "pcdev-serial2",
-		.perm = 0,
+		.perm = 0x303,
 	},
 	.pcdev_priv[3] = {
 		.buffer = pcdev3_buffer,
 		.size = 0,
 		.serial_number = "pcdev-serial3",
-		.perm = 0,
+		.perm = 0x404,
 	},
 };
 
@@ -211,7 +211,28 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 
 int pcd_open (struct inode *inodep, struct file *filep)
 {
+	dev_t device_number;
+	int dev_minor;
+	struct pcdev_private_data * dev_priv;
+	/* you can get which devices from multi devices using inode. */
+
+	device_number = inodep->i_rdev;
+
+	dev_minor = MINOR( device_number );
+	
+	pr_info("minor number: %d\n", dev_minor);
+
+	/* get devices private data structure */
+
+	dev_priv = &pcdrv_priv.pcdev_priv[ dev_minor ];
+
+	filep->private_data = dev_priv;
+
+	/* check permission */
+	pr_info(" permission: %d\n", dev_priv->perm);
+
 	pr_info("\n");
+
 	return 0;
 };
 
