@@ -7,6 +7,21 @@ struct some_data {
 	int d;
 };
 
+void * get_my_container(void *member_addr)
+{
+	long *ptr;
+	long diff;
+	long *base_addr;
+
+	ptr = &(((struct some_data *)0)->c);
+	diff = (long)ptr;
+
+	base_addr = (long)member_addr - diff;
+
+	return base_addr;
+}
+
+
 int main(void)
 {
 	struct some_data _data;
@@ -15,12 +30,14 @@ int main(void)
 	long diff;
 	long *ptr;
 
+	struct some_data *temp_ptr;
+
 	_data.a = 2;
 	_data.b = '5';
 	_data.c = 1;
 	_data.d = 99;
 
-	diff = ((long)&temp_data.c - (long)&temp_data.a);
+	diff = ((long)&temp_data.c - (long)&temp_data);
 
 	printf("diff: %ld\n", diff);
 
@@ -31,6 +48,10 @@ int main(void)
 	printf("ptr address: %p\n", ptr);
 
 	printf("a is : %d\n", *(int *)ptr);
+
+	temp_ptr = get_my_container( & _data.c);
+
+	printf("new a is : %d\n", temp_ptr->a);
 	
 	return 0;
 }
