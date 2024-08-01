@@ -5,6 +5,7 @@
 #include <uapi/asm-generic/errno-base.h>
 #include <uapi/linux/fs.h>
 #include <linux/kernel.h>
+#include <linux/types.h>
 
 #define DEV_MEM_SIZE	8
 
@@ -15,9 +16,9 @@
 
 #define NUM_OF_DEVICES	4
 
-#define PERM_READ	1
-#define PERM_WRITE	2
-
+#define PERM_READ_ONLY	1
+#define PERM_WRITE_ONLY 2
+#define PERM_READ_WRITE	3
 
 
 static char pcdev0_buffer[DEV_MEM_SIZE0];
@@ -49,25 +50,25 @@ struct pcdrv_private_data pcdrv_priv = {
 		.buffer = pcdev0_buffer,
 		.size = DEV_MEM_SIZE0,
 		.serial_number = "pcdev-serial0",
-		.perm = PERM_READ,
+		.perm = PERM_READ_ONLY,
 	},
 	.pcdev_priv[1] = {
 		.buffer = pcdev1_buffer,
 		.size = DEV_MEM_SIZE1,
 		.serial_number = "pcdev-serial1",
-		.perm = (PERM_READ | PERM_WRITE),
+		.perm = (PERM_READ_WRITE),
 	},
 	.pcdev_priv[2] = {
 		.buffer = pcdev2_buffer,
 		.size = DEV_MEM_SIZE2,
 		.serial_number = "pcdev-serial2",
-		.perm = (PERM_WRITE),
+		.perm = PERM_WRITE_ONLY,
 	},
 	.pcdev_priv[3] = {
 		.buffer = pcdev3_buffer,
 		.size = DEV_MEM_SIZE3,
 		.serial_number = "pcdev-serial3",
-		.perm = PERM_READ,
+		.perm = PERM_READ_ONLY,
 	},
 };
 
@@ -79,6 +80,24 @@ dev_t device_number;
 struct class * pcd_class;
 
 struct device * pcd_dev;
+
+bool check_permission(fmode_t file_perm, int dev_perm)
+{
+	bool ret;
+
+	ret = false;
+
+	if (dev_perm == PERM_READ_ONLY) {
+		if ( ((file_perm & FMODE_READ) == FMODE_READ) && ((file_perm & FMODE_WRITE) != FMODE_WRITE) )
+			ret = true;
+	} else if (dev_perm == PERM_WRITE_ONLY) {
+		if ( ((file_perm & FMODE_WRITE) == FMODE_WRITE) && ((file_perm & FMODE_READ) != FMODE_READ) )
+			ret = true;
+	} else 
+		ret = true;
+
+	return ret;
+}
 
 #undef pr_fmt
 #define pr_fmt(fmt) "[PCD_DEV][%s] : " fmt, __func__
@@ -138,16 +157,9 @@ ssize_t pcd_read (struct file *filep, char __user *buf, size_t count, loff_t * f
 {
 	int count_adj;
 	int read_bytes;
-	int permission;
 	struct pcdev_private_data *pcd_priv;
 
 	pcd_priv = (struct pcdev_private_data *)filep->private_data;
-
-	permission = pcd_priv->perm;
-
-	if ((permission & PERM_READ) != PERM_READ) {
-		return -EPERM;
-	}
 
 	read_bytes = 0;
 	count_adj = count;
@@ -192,16 +204,9 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 {
 	int count_adj;
 	int write_bytes;
-	int permission;
 	struct pcdev_private_data *pcd_priv;
 
 	pcd_priv = (struct pcdev_private_data *)filep->private_data;
-
-	permission = pcd_priv->perm;
-
-	if ((permission & PERM_WRITE) != PERM_WRITE) {
-		return -EPERM;
-	}
 
 	pr_info("user request: %zu\n", count);
 	pr_info("current file position: %lld\n", *f_pos);
@@ -267,6 +272,11 @@ int pcd_open (struct inode *inodep, struct file *filep)
 
 	/* check permission */
 	pr_info(" permission: %d\n", dev_priv->perm);
+
+	if (!check_permission(filep->f_mode, dev_priv->perm)) {
+		return -EPERM;
+	}
+
 
 	pr_info("\n");
 
