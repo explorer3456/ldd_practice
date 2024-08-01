@@ -7,15 +7,23 @@
 #include <linux/kernel.h>
 
 #define DEV_MEM_SIZE	8
+
+#define DEV_MEM_SIZE0	8
+#define DEV_MEM_SIZE1	16	
+#define DEV_MEM_SIZE2	24
+#define DEV_MEM_SIZE3	32
+
 #define NUM_OF_DEVICES	4
 
 #define PERM_READ	1
 #define PERM_WRITE	2
 
-static char pcdev0_buffer[DEV_MEM_SIZE];
-static char pcdev1_buffer[DEV_MEM_SIZE];
-static char pcdev2_buffer[DEV_MEM_SIZE];
-static char pcdev3_buffer[DEV_MEM_SIZE];
+
+
+static char pcdev0_buffer[DEV_MEM_SIZE0];
+static char pcdev1_buffer[DEV_MEM_SIZE1];
+static char pcdev2_buffer[DEV_MEM_SIZE2];
+static char pcdev3_buffer[DEV_MEM_SIZE3];
 
 // since there are multiple devices, we should keep device information 
 // to array.
@@ -39,32 +47,31 @@ struct pcdrv_private_data pcdrv_priv = {
 	.total_devices = NUM_OF_DEVICES,
 	.pcdev_priv[0] = {
 		.buffer = pcdev0_buffer,
-		.size = 0,
+		.size = DEV_MEM_SIZE0,
 		.serial_number = "pcdev-serial0",
 		.perm = PERM_READ,
 	},
 	.pcdev_priv[1] = {
 		.buffer = pcdev1_buffer,
-		.size = 0,
+		.size = DEV_MEM_SIZE1,
 		.serial_number = "pcdev-serial1",
 		.perm = (PERM_READ | PERM_WRITE),
 	},
 	.pcdev_priv[2] = {
 		.buffer = pcdev2_buffer,
-		.size = 0,
+		.size = DEV_MEM_SIZE2,
 		.serial_number = "pcdev-serial2",
 		.perm = (PERM_WRITE),
 	},
 	.pcdev_priv[3] = {
 		.buffer = pcdev3_buffer,
-		.size = 0,
+		.size = DEV_MEM_SIZE3,
 		.serial_number = "pcdev-serial3",
 		.perm = PERM_READ,
 	},
 };
 
 // including EOF (DEV MEM SIZE + 1)
-static char pcdev_buffer[DEV_MEM_SIZE];
 // static char pcdev_buffer[DEV_MEM_SIZE];
 
 dev_t device_number;
@@ -79,6 +86,9 @@ struct device * pcd_dev;
 loff_t pcd_llseek (struct file *filep, loff_t offset, int whence)
 {
 	int ret;
+	struct pcdev_private_data *pcd_priv;
+
+	pcd_priv = (struct pcdev_private_data *)filep->private_data;
 
 	ret = 0;
 
@@ -86,7 +96,7 @@ loff_t pcd_llseek (struct file *filep, loff_t offset, int whence)
 	
 	switch(whence) {
 		case SEEK_SET:
-			if ( (offset > DEV_MEM_SIZE) || (offset < 0) ){
+			if ( (offset > pcd_priv->size) || (offset < 0) ){
 				pr_info("the address is beyond the address\n");
 				ret = -EINVAL;
 			} else {
@@ -95,7 +105,7 @@ loff_t pcd_llseek (struct file *filep, loff_t offset, int whence)
 
 			break;
 		case SEEK_CUR:
-			if ( ((filep->f_pos + offset) > DEV_MEM_SIZE) || ( (filep->f_pos + offset) < 0) ) {
+			if ( ((filep->f_pos + offset) > pcd_priv->size) || ( (filep->f_pos + offset) < 0) ) {
 				pr_info("the address is beyond the address\n");
 				ret = -EINVAL;
 			} else {
@@ -107,7 +117,7 @@ loff_t pcd_llseek (struct file *filep, loff_t offset, int whence)
 				pr_info("the address is beyond the address\n");
 				ret = -EINVAL;
 			} else {
-				filep->f_pos = DEV_MEM_SIZE + offset;
+				filep->f_pos = pcd_priv->size + offset;
 			}
 			break;
 		default:
@@ -147,15 +157,15 @@ ssize_t pcd_read (struct file *filep, char __user *buf, size_t count, loff_t * f
 	pr_info("user request: %zu\n", count);
 	pr_info("current file position: %lld\n", *f_pos);
 
-	if ( ((*f_pos) + count_adj) > DEV_MEM_SIZE) {
+	if ( ((*f_pos) + count_adj) > pcd_priv->size) {
 		// adjust count
-		count_adj = DEV_MEM_SIZE - (*f_pos);
+		count_adj = (pcd_priv->size) - (*f_pos);
 		pr_info("adjust count to : %d\n", count_adj);
 	}
 
 	// if f_pos is end of file, dont access to that location.
-	if ( ((*f_pos) < DEV_MEM_SIZE) ) {
-		read_bytes = copy_to_user(buf, (void *)pcdev_buffer + (*f_pos), count_adj);
+	if ( ((*f_pos) < (pcd_priv->size)) ) {
+		read_bytes = copy_to_user(buf, (void *)pcd_priv->buffer + (*f_pos), count_adj);
 
 		// there is some error. Address error.
 		if (read_bytes != 0) {
@@ -182,6 +192,16 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 {
 	int count_adj;
 	int write_bytes;
+	int permission;
+	struct pcdev_private_data *pcd_priv;
+
+	pcd_priv = (struct pcdev_private_data *)filep->private_data;
+
+	permission = pcd_priv->perm;
+
+	if ((permission & PERM_WRITE) != PERM_WRITE) {
+		return -EPERM;
+	}
 
 	pr_info("user request: %zu\n", count);
 	pr_info("current file position: %lld\n", *f_pos);
@@ -189,8 +209,8 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 	count_adj = count;
 	write_bytes = 0;
 
-	if ( (*f_pos) + count_adj > DEV_MEM_SIZE) {
-		count_adj = DEV_MEM_SIZE - (*f_pos);
+	if ( (*f_pos) + count_adj > (pcd_priv->size)) {
+		count_adj = (pcd_priv->size) - (*f_pos);
 		pr_info("adjust count to : %d\n", count_adj);
 	}
 
@@ -202,8 +222,8 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 
 
 	// if f_pos is end of file, dont access to that location.
-	if ( ((*f_pos) < DEV_MEM_SIZE) ) {
-		write_bytes = copy_from_user( (void *)pcdev_buffer + (*f_pos), buf, count_adj);
+	if ( ((*f_pos) < (pcd_priv->size)) ) {
+		write_bytes = copy_from_user( (void *)pcd_priv->buffer + (*f_pos), buf, count_adj);
 
 		// there is some error. Address error.
 		// or there are some bytes that cannot be coppied.
