@@ -4,6 +4,7 @@
 #include <linux/uaccess.h>
 #include <uapi/asm-generic/errno-base.h>
 #include <uapi/linux/fs.h>
+#include <linux/kernel.h>
 
 #define DEV_MEM_SIZE	8
 #define NUM_OF_DEVICES	4
@@ -224,7 +225,7 @@ int pcd_open (struct inode *inodep, struct file *filep)
 
 	/* get devices private data structure */
 
-	dev_priv = &pcdrv_priv.pcdev_priv[ dev_minor ];
+	dev_priv = container_of( inodep->i_cdev, struct pcdev_private_data, pcd_cdev);
 
 	filep->private_data = dev_priv;
 
