@@ -9,6 +9,9 @@
 #define DEV_MEM_SIZE	8
 #define NUM_OF_DEVICES	4
 
+#define PERM_READ	1
+#define PERM_WRITE	2
+
 static char pcdev0_buffer[DEV_MEM_SIZE];
 static char pcdev1_buffer[DEV_MEM_SIZE];
 static char pcdev2_buffer[DEV_MEM_SIZE];
@@ -38,25 +41,25 @@ struct pcdrv_private_data pcdrv_priv = {
 		.buffer = pcdev0_buffer,
 		.size = 0,
 		.serial_number = "pcdev-serial0",
-		.perm = 0x101,
+		.perm = PERM_READ,
 	},
 	.pcdev_priv[1] = {
 		.buffer = pcdev1_buffer,
 		.size = 0,
 		.serial_number = "pcdev-serial1",
-		.perm = 0x202,
+		.perm = (PERM_READ | PERM_WRITE),
 	},
 	.pcdev_priv[2] = {
 		.buffer = pcdev2_buffer,
 		.size = 0,
 		.serial_number = "pcdev-serial2",
-		.perm = 0x303,
+		.perm = (PERM_WRITE),
 	},
 	.pcdev_priv[3] = {
 		.buffer = pcdev3_buffer,
 		.size = 0,
 		.serial_number = "pcdev-serial3",
-		.perm = 0x404,
+		.perm = PERM_READ,
 	},
 };
 
@@ -125,11 +128,22 @@ ssize_t pcd_read (struct file *filep, char __user *buf, size_t count, loff_t * f
 {
 	int count_adj;
 	int read_bytes;
+	int permission;
+	struct pcdev_private_data *pcd_priv;
+
+	pcd_priv = (struct pcdev_private_data *)filep->private_data;
+
+	permission = pcd_priv->perm;
+
+	if ((permission & PERM_READ) != PERM_READ) {
+		return -EPERM;
+	}
 
 	read_bytes = 0;
 	count_adj = count;
 	// check count value valid.
 
+	pr_info("serial number: %s\n", pcd_priv->serial_number);
 	pr_info("user request: %zu\n", count);
 	pr_info("current file position: %lld\n", *f_pos);
 
@@ -148,7 +162,8 @@ ssize_t pcd_read (struct file *filep, char __user *buf, size_t count, loff_t * f
 			if (read_bytes < 0 ) {
 				return -EFAULT;
 			} else if (read_bytes > 0 ) {
-				pr_info("ERROR. copy  to use failed: %d\n", read_bytes);
+				pr_err("ERROR. copy  to use failed: %d\n", read_bytes);
+				return -EFAULT;
 			}
 
 		}
@@ -197,7 +212,8 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 			if (write_bytes < 0 ) {
 				return -EFAULT;
 			} else if (write_bytes > 0 ) {
-				pr_info("ERROR. copy from user failed: %d\n", write_bytes);
+				pr_err("ERROR. copy from user failed: %d\n", write_bytes);
+				return -EFAULT;
 			}
 		}
 	}
