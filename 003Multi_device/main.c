@@ -96,6 +96,9 @@ bool check_permission(fmode_t file_perm, int dev_perm)
 	} else 
 		ret = true;
 
+	if (!ret)
+		pr_err("Permission denied\n");
+
 	return ret;
 }
 
@@ -276,7 +279,6 @@ int pcd_open (struct inode *inodep, struct file *filep)
 	if (!check_permission(filep->f_mode, dev_priv->perm)) {
 		return -EPERM;
 	}
-
 
 	pr_info("\n");
 
