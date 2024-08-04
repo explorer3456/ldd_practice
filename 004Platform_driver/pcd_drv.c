@@ -73,6 +73,8 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 
 int pcd_open (struct inode *inodep, struct file *filep)
 {
+	int ret;
+
 	pr_info("\n");
 	return 0;
 };
@@ -167,11 +169,9 @@ static int pcd_probe(struct platform_device * pcdev)
 device_create_failed:
 	cdev_del( &pcd_priv_ptr->cdev );
 cdev_add_failed:
-	// device resource management handle it.
-	// kfree ( pcd_priv_ptr->buffer );
+	devm_kfree ( &pcdev->dev, pcd_priv_ptr->buffer );
 dev_data_free:
-	// device resource management handle it.
-	// kfree( pcd_priv_ptr );
+	devm_kfree( &pcdev->dev, pcd_priv_ptr );
 out:
 	return ret;
 };
