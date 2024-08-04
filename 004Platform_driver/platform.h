@@ -19,7 +19,7 @@
 #define PERM_WRITE_ONLY 2
 #define PERM_READ_WRITE	3
 
-struct pcdev_private_data {
+struct pcdev_platform_data {
 	char * buffer;
 	unsigned int size;
 	const char * serial_number;

@@ -11,7 +11,7 @@ static char pcdev1_buffer[DEV_MEM_SIZE1];
 static char pcdev2_buffer[DEV_MEM_SIZE2];
 static char pcdev3_buffer[DEV_MEM_SIZE3];
 
-struct pcdev_private_data pcdev_priv[2] = {
+struct pcdev_platform_data pcdev_priv[2] = {
 	[0] = {
 		.buffer = pcdev0_buffer,
 		.size = DEV_MEM_SIZE0,
@@ -36,7 +36,7 @@ struct platform_device pcd_plat_dev0 = {
 	.id = 0,
 	.dev = {
 		.release = pcd_plat_dev_release,
-		.platform_data = (struct pcdev_private_data *)&pcdev_priv[0],
+		.platform_data = (struct pcdev_platform_data *)&pcdev_priv[0],
 	},
 };
 
@@ -45,7 +45,7 @@ struct platform_device pcd_plat_dev1 = {
 	.id = 1,
 	.dev = {
 		.release = pcd_plat_dev_release,
-		.platform_data = (struct pcdev_private_data *)&pcdev_priv[1],
+		.platform_data = (struct pcdev_platform_data *)&pcdev_priv[1],
 	},
 };
 
