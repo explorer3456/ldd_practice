@@ -148,6 +148,10 @@ static int pcd_probe(struct platform_device * pcdev)
 		goto device_create_failed;
 	}
 
+	// since probe is successful, we want to save the device private data.
+	// so that other file operations can access to private data.
+	pcdev->dev.driver_data = pcd_priv_ptr;
+
 	pr_info("device probed\n");
 	return 0;
 
@@ -164,16 +168,28 @@ out:
 static int pcd_remove(struct platform_device *pcdev) 
 {
 	int id;
+	int ret;
+	struct pcdev_private_data * pcd_priv_ptr;
+
+	ret = 0;
+
+	pcd_priv_ptr = pcdev->dev.driver_data;
+	if (pcd_priv_ptr == NULL) {
+		ret = -EFAULT; 
+		pr_err("invalid private data: %d\n", ret);
+		goto out;
+	}
 
 	id = pcdev->id;
 
 	pr_err("remove id: %d\n", id);
 
-	device_destroy( pcdrv_priv.class_pcd, pcdev_priv[id].dev_num );
-	cdev_del( &pcdev_priv[id].cdev );
+	device_destroy( pcdrv_priv.class_pcd, pcd_priv_ptr->dev_num );
+	cdev_del( &pcd_priv_ptr->cdev );
 	pr_info("device removed\n");
 
-	return 0;
+out:
+	return ret;
 };
 
 struct platform_driver pcd_plat_driver = {
