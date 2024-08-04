@@ -7,6 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include "platform.h"
 
 struct pcdev_private_data
@@ -96,9 +97,25 @@ static int pcd_probe(struct platform_device * pcdev)
 	int ret;
 	int id;
 
+	struct pcdev_private_data * pcd_priv_ptr;
 	struct pcdev_platform_data * pcd_plat_ptr; // platform device information. we need this.
 
+	// allocate device private data since we found devices
+	pcd_priv_ptr = kmalloc( sizeof(struct pcdev_private_data), GFP_KERNEL);
+	if (pcd_priv_ptr == NULL) {
+		pr_err("kernel memory allocation is failed\n");
+		ret = -ENOMEM;
+		goto ret;
+	}
+
+	// copy the platform data from platform device.
 	pcd_plat_ptr = pcdev->dev.platform_data;
+	pcd_priv_ptr->pdata.size = pcd_plat_ptr->size;
+	sprintf(pcd_priv_ptr->pdata.serial_number, pcd_plat_ptr->serial_number);
+	pcd_priv_ptr->pdata.perm = pcd_plat_ptr->perm;
+
+	// allocate user interfaces variables.
+	pcd_priv_ptr->buffer = kzalloc((pcd_priv_ptr->pdata.size) * sizeof(pcd_priv_ptr->pdata.size), GFP_KERNEL);
 
 	id = pcdev->id;
 
@@ -131,6 +148,7 @@ static int pcd_probe(struct platform_device * pcdev)
 device_create_failed:
 	cdev_del( &pcdev_priv[id].cdev );
 cdev_add_failed:
+out:
 	return ret;
 };
 
