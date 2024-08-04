@@ -96,6 +96,10 @@ static int pcd_probe(struct platform_device * pcdev)
 	int ret;
 	int id;
 
+	struct pcdev_platform_data * pcd_plat_ptr; // platform device information. we need this.
+
+	pcd_plat_ptr = pcdev->dev.platform_data;
+
 	id = pcdev->id;
 
 	pcdev_priv[id].dev_num = pcdrv_priv.dev_num_base + id;
@@ -159,6 +163,8 @@ static int __init pcd_module_init(void)
 
 	ret = 0;
 
+	pr_info("module init start\n");
+
 	// alloc device number.
 	ret = alloc_chrdev_region( &pcdrv_priv.dev_num_base, 0, NUM_OF_DEVICES, "pcd_device_num");
 	if (ret < 0) {
@@ -174,7 +180,6 @@ static int __init pcd_module_init(void)
 		goto class_failed;
 	}
 
-	pr_info("module init start\n");
 	ret = platform_driver_register( &pcd_plat_driver );
 	if (ret < 0) {
 		pr_err("module init failed\n");
