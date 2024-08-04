@@ -111,7 +111,8 @@ static int pcd_probe(struct platform_device * pcdev)
 	// copy the platform data from platform device.
 	pcd_plat_ptr = pcdev->dev.platform_data;
 	pcd_priv_ptr->pdata.size = pcd_plat_ptr->size;
-	sprintf(pcd_priv_ptr->pdata.serial_number, pcd_plat_ptr->serial_number);
+	// sprintf(pcd_priv_ptr->pdata.serial_number, pcd_plat_ptr->serial_number);
+	pcd_priv_ptr->pdata.serial_number = pcd_plat_ptr->serial_number;
 	pcd_priv_ptr->pdata.perm = pcd_plat_ptr->perm;
 
 	// allocate user interfaces variables.
@@ -127,8 +128,6 @@ static int pcd_probe(struct platform_device * pcdev)
 	// pcdev_priv[id].dev_num = pcdrv_priv.dev_num_base + id;
 	pcd_priv_ptr->dev_num = pcdrv_priv.dev_num_base + id;
 
-	pr_info("devnumber: %08x, major: %d, minor: %d \n", pcd_priv_ptr->dev_num,  \
-			MAJOR(pcd_priv_ptr->dev_num), MINOR(pcd_priv_ptr->dev_num));
 
 	cdev_init( &(pcd_priv_ptr->cdev), &pcd_fops);
 	pcd_priv_ptr->cdev.owner = THIS_MODULE;
@@ -153,6 +152,16 @@ static int pcd_probe(struct platform_device * pcdev)
 	pcdev->dev.driver_data = pcd_priv_ptr;
 
 	pr_info("device probed\n");
+	
+	// print device information
+
+	pr_info("devnumber: %08x, major: %d, minor: %d \n", pcd_priv_ptr->dev_num,  \
+			MAJOR(pcd_priv_ptr->dev_num), MINOR(pcd_priv_ptr->dev_num));
+
+	pr_info("--size: %d\n", pcd_priv_ptr->pdata.size);
+	pr_info("--serial number: %s\n", pcd_priv_ptr->pdata.serial_number);
+	pr_info("--permission: %d\n", pcd_priv_ptr->pdata.perm);
+
 	return 0;
 
 device_create_failed:
