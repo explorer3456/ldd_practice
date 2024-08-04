@@ -101,7 +101,7 @@ static int pcd_probe(struct platform_device * pcdev)
 	struct pcdev_platform_data * pcd_plat_ptr; // platform device information. we need this.
 
 	// allocate device private data since we found devices
-	pcd_priv_ptr = kmalloc( sizeof(struct pcdev_private_data), GFP_KERNEL);
+	pcd_priv_ptr = kzalloc( sizeof(struct pcdev_private_data), GFP_KERNEL);
 	if (pcd_priv_ptr == NULL) {
 		pr_err("kernel memory allocation is failed\n");
 		ret = -ENOMEM;
