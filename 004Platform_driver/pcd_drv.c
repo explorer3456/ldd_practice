@@ -186,6 +186,11 @@ static int pcd_remove(struct platform_device *pcdev)
 
 	device_destroy( pcdrv_priv.class_pcd, pcd_priv_ptr->dev_num );
 	cdev_del( &pcd_priv_ptr->cdev );
+
+	// free the memory.
+	kfree( pcd_priv_ptr->buffer);
+	kfree( pcd_priv_ptr );
+
 	pr_info("device removed\n");
 
 out:
