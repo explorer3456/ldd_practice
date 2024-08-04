@@ -99,12 +99,9 @@ static int pcd_probe(struct platform_device * pcdev)
 
 	struct pcdev_private_data * pcd_priv_ptr;
 	struct pcdev_platform_data * pcd_plat_ptr; // platform device information. we need this.
-	struct device pcd_dev;
-
-	pcd_dev = pcdev->dev;
 
 	// allocate device private data since we found devices
-	pcd_priv_ptr = devm_kzalloc( &pcd_dev, sizeof(struct pcdev_private_data), GFP_KERNEL);
+	pcd_priv_ptr = devm_kzalloc( &pcdev->dev, sizeof(struct pcdev_private_data), GFP_KERNEL);
 	if (pcd_priv_ptr == NULL) {
 		pr_err("kernel memory allocation is failed\n");
 		ret = -ENOMEM;
@@ -119,7 +116,7 @@ static int pcd_probe(struct platform_device * pcdev)
 	pcd_priv_ptr->pdata.perm = pcd_plat_ptr->perm;
 
 	// allocate user interfaces variables.
-	pcd_priv_ptr->buffer = devm_kzalloc( &pcd_dev, (pcd_priv_ptr->pdata.size) * sizeof(pcd_priv_ptr->pdata.size), GFP_KERNEL);
+	pcd_priv_ptr->buffer = devm_kzalloc( &pcdev->dev, (pcd_priv_ptr->pdata.size) * sizeof(pcd_priv_ptr->pdata.size), GFP_KERNEL);
 	if (pcd_priv_ptr->buffer == NULL) {
 		pr_err("kernel memory allocation is failed\n");
 		ret = -ENOMEM;
@@ -170,9 +167,11 @@ static int pcd_probe(struct platform_device * pcdev)
 device_create_failed:
 	cdev_del( &pcd_priv_ptr->cdev );
 cdev_add_failed:
-	kfree ( pcd_priv_ptr->buffer );
+	// device resource management handle it.
+	// kfree ( pcd_priv_ptr->buffer );
 dev_data_free:
-	kfree( pcd_priv_ptr );
+	// device resource management handle it.
+	// kfree( pcd_priv_ptr );
 out:
 	return ret;
 };
