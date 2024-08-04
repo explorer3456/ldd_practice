@@ -1,4 +1,4 @@
-obj-m := main.o dev.o
+obj-m := pcd_drv.o pcd_dev.o
 ARCH=arm
 CROSS_COMPILE=arm-linux-gnueabi-
 KERNEL_DIR=/home/jhkim/project/udemy/device_driver/workspace/custom_driver_4/source/linux

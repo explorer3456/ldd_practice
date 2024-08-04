@@ -417,11 +417,12 @@ static int __init pcd_module_init(void)
 {
 	int ret;
 
+	pr_info("module init start\n");
 	ret = platform_driver_register( &pcd_plat_driver );
 	if (ret < 0) {
 		pr_err("module init failed\n");
 	} else {
-		pr_info("module init\n");
+		pr_info("module init done\n");
 	}
 
 	return ret;
@@ -429,6 +430,7 @@ static int __init pcd_module_init(void)
 
 static void __exit pcd_module_exit(void)
 {
+	pr_info("module exit\n");
 	platform_driver_unregister( &pcd_plat_driver );
 }
 

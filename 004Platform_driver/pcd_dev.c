@@ -27,3 +27,8 @@ static void __exit plat_device_cleanup(void)
 
 module_init(plat_device_init);
 module_exit(plat_device_cleanup);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("ME");
+MODULE_DESCRIPTION("Simple hello world kernel module");
+MODULE_INFO(board, "Beaglebone black REV A5");
