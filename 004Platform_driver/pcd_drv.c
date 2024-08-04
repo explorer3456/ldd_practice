@@ -104,7 +104,7 @@ bool check_permission(fmode_t file_perm, int dev_perm)
 }
 
 #undef pr_fmt
-#define pr_fmt(fmt) "[PCD_DEV][%s] : " fmt, __func__
+#define pr_fmt(fmt) "[PCD_DRV][%s] : " fmt, __func__
 
 loff_t pcd_llseek (struct file *filep, loff_t offset, int whence)
 {
