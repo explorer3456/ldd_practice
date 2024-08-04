@@ -11,18 +11,19 @@ static char pcdev1_buffer[DEV_MEM_SIZE1];
 static char pcdev2_buffer[DEV_MEM_SIZE2];
 static char pcdev3_buffer[DEV_MEM_SIZE3];
 
-struct pcdev_private_data pcdev_priv0 = {
-	.buffer = pcdev0_buffer,
-	.size = DEV_MEM_SIZE0,
-	.serial_number = "pcd_priv_serial-0",
-	.perm = PERM_READ_ONLY,
-};
-
-struct pcdev_private_data pcdev_priv1 = {
-	.buffer = pcdev1_buffer,
-	.size = DEV_MEM_SIZE1,
-	.serial_number = "pcd_priv_serial-1",
-	.perm = PERM_READ_WRITE,
+struct pcdev_private_data pcdev_priv[2] = {
+	[0] = {
+		.buffer = pcdev0_buffer,
+		.size = DEV_MEM_SIZE0,
+		.serial_number = "pcd_priv_serial-0",
+		.perm = PERM_READ_ONLY,
+	},
+	[1] = {
+		.buffer = pcdev1_buffer,
+		.size = DEV_MEM_SIZE1,
+		.serial_number = "pcd_priv_serial-1",
+		.perm = PERM_READ_WRITE,
+	},
 };
 
 static void pcd_plat_dev_release(struct device *dev)
@@ -32,17 +33,19 @@ static void pcd_plat_dev_release(struct device *dev)
 
 struct platform_device pcd_plat_dev0 = {
 	.name = "pcd_plat_dev",
+	.id = 0,
 	.dev = {
 		.release = pcd_plat_dev_release,
-		.platform_data = (struct pcdev_private_data *)&pcdev_priv0,
+		.platform_data = (struct pcdev_private_data *)&pcdev_priv[0],
 	},
 };
 
 struct platform_device pcd_plat_dev1 = {
 	.name = "pcd_plat_dev",
+	.id = 1,
 	.dev = {
 		.release = pcd_plat_dev_release,
-		.platform_data = (struct pcdev_private_data *)&pcdev_priv1,
+		.platform_data = (struct pcdev_private_data *)&pcdev_priv[1],
 	},
 };
 
