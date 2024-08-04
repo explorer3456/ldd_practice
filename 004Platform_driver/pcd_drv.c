@@ -105,7 +105,7 @@ static int pcd_probe(struct platform_device * pcdev)
 	if (pcd_priv_ptr == NULL) {
 		pr_err("kernel memory allocation is failed\n");
 		ret = -ENOMEM;
-		goto ret;
+		goto out;
 	}
 
 	// copy the platform data from platform device.
@@ -116,24 +116,30 @@ static int pcd_probe(struct platform_device * pcdev)
 
 	// allocate user interfaces variables.
 	pcd_priv_ptr->buffer = kzalloc((pcd_priv_ptr->pdata.size) * sizeof(pcd_priv_ptr->pdata.size), GFP_KERNEL);
+	if (pcd_priv_ptr->buffer == NULL) {
+		pr_err("kernel memory allocation is failed\n");
+		ret = -ENOMEM;
+		goto dev_data_free;
+	}
 
 	id = pcdev->id;
 
-	pcdev_priv[id].dev_num = pcdrv_priv.dev_num_base + id;
+	// pcdev_priv[id].dev_num = pcdrv_priv.dev_num_base + id;
+	pcd_priv_ptr->dev_num = pcdrv_priv.dev_num_base + id;
 
-	pr_info("devnumber: %08x, major: %d, minor: %d \n", pcdev_priv[id].dev_num,  \
-			MAJOR(pcdev_priv[id].dev_num), MINOR(pcdev_priv[id].dev_num));
+	pr_info("devnumber: %08x, major: %d, minor: %d \n", pcd_priv_ptr->dev_num,  \
+			MAJOR(pcd_priv_ptr->dev_num), MINOR(pcd_priv_ptr->dev_num));
 
-	cdev_init( &(pcdev_priv[id].cdev), &pcd_fops);
-	pcdev_priv[id].cdev.owner = THIS_MODULE;
+	cdev_init( &(pcd_priv_ptr->cdev), &pcd_fops);
+	pcd_priv_ptr->cdev.owner = THIS_MODULE;
 
-	ret = cdev_add( &pcdev_priv[id].cdev, pcdev_priv[id].dev_num, 1);
+	ret = cdev_add( &pcd_priv_ptr->cdev, pcd_priv_ptr->dev_num, 1);
 	if (ret < 0 ) {
 		pr_err(" cdev add failed: %d\n", ret);
 		goto cdev_add_failed;
 	}
 
-	pcdrv_priv.device_pcd = device_create( pcdrv_priv.class_pcd, NULL, pcdev_priv[id].dev_num , NULL, \
+	pcdrv_priv.device_pcd = device_create( pcdrv_priv.class_pcd, NULL, pcd_priv_ptr->dev_num , NULL, \
 			"pcd-dev-create-%d", id);
 
 	if (IS_ERR(pcdrv_priv.device_pcd)) {
@@ -146,8 +152,11 @@ static int pcd_probe(struct platform_device * pcdev)
 	return 0;
 
 device_create_failed:
-	cdev_del( &pcdev_priv[id].cdev );
+	cdev_del( &pcd_priv_ptr->cdev );
 cdev_add_failed:
+	kfree ( pcd_priv_ptr->buffer );
+dev_data_free:
+	kfree( pcd_priv_ptr );
 out:
 	return ret;
 };
