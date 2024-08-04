@@ -1,19 +1,48 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/device.h>
+#include "platform.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) "[PCD_DEV][%s] : " fmt, __func__
+
+static char pcdev0_buffer[DEV_MEM_SIZE0];
+static char pcdev1_buffer[DEV_MEM_SIZE1];
+static char pcdev2_buffer[DEV_MEM_SIZE2];
+static char pcdev3_buffer[DEV_MEM_SIZE3];
+
+struct pcdev_private_data pcdev_priv0 = {
+	.buffer = pcdev0_buffer,
+	.size = DEV_MEM_SIZE0,
+	.serial_number = "pcd_priv_serial-0",
+	.perm = PERM_READ_ONLY,
+};
+
+struct pcdev_private_data pcdev_priv1 = {
+	.buffer = pcdev1_buffer,
+	.size = DEV_MEM_SIZE1,
+	.serial_number = "pcd_priv_serial-1",
+	.perm = PERM_READ_WRITE,
+};
 
 static void pcd_plat_dev_release(struct device *dev)
 {
 	pr_info("device release\n");
 }
 
-struct platform_device pcd_plat_dev = {
-	.name = "pcd_plat_dev-0",
+struct platform_device pcd_plat_dev0 = {
+	.name = "pcd_plat_dev",
 	.dev = {
 		.release = pcd_plat_dev_release,
+		.platform_data = (struct pcdev_private_data *)&pcdev_priv0,
+	},
+};
+
+struct platform_device pcd_plat_dev1 = {
+	.name = "pcd_plat_dev",
+	.dev = {
+		.release = pcd_plat_dev_release,
+		.platform_data = (struct pcdev_private_data *)&pcdev_priv1,
 	},
 };
 
@@ -22,7 +51,8 @@ static int __init plat_device_init(void)
 	int ret;
 
 	pr_info("platform device module init start\n");
-	ret = platform_device_register( &pcd_plat_dev );
+	ret = platform_device_register( &pcd_plat_dev0 );
+	ret = platform_device_register( &pcd_plat_dev1 );
 
 	if (ret < 0 ) {
 		pr_err("platform device register failed: %d\n", ret);
@@ -35,7 +65,8 @@ static int __init plat_device_init(void)
 
 static void __exit plat_device_cleanup(void)
 {
-	platform_device_unregister(&pcd_plat_dev);
+	platform_device_unregister(&pcd_plat_dev0);
+	platform_device_unregister(&pcd_plat_dev1);
 }
 
 module_init(plat_device_init);
