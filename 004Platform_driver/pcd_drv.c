@@ -74,9 +74,38 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 int pcd_open (struct inode *inodep, struct file *filep)
 {
 	int ret;
+	struct pcdev_private_data * pcd_priv_ptr;
+	struct pcdev_platform_data * pdata;
+
+	ret = 0;
+
+	// get device private data.
+
+	// container_of( ptr, type, member );
+	pcd_priv_ptr = container_of(inodep->i_cdev, struct pcdev_private_data, cdev);
+
+	pr_info("get pcd priv data\n");
+	pr_info("--devnumber: %08x, major: %d, minor: %d \n", pcd_priv_ptr->dev_num,  \
+			MAJOR(pcd_priv_ptr->dev_num), MINOR(pcd_priv_ptr->dev_num));
+
+	pr_info("--size: %d\n", pcd_priv_ptr->pdata.size);
+	pr_info("--serial number: %s\n", pcd_priv_ptr->pdata.serial_number);
+	pr_info("--permission: %d\n", pcd_priv_ptr->pdata.perm);
+
+	pdata = &pcd_priv_ptr->pdata;
+
+	filep->private_data = pcd_priv_ptr;
+// bool check_permission(fmode_t file_perm, int dev_perm)
+
+	if (!check_permission( filep->f_mode, pcd_priv_ptr->pdata.perm )) {
+		pr_err("Permission denied\n");
+		ret = -EPERM;
+		goto out;
+	}
 
 	pr_info("\n");
-	return 0;
+out:
+	return ret;
 };
 
 int pcd_release (struct inode *inodep, struct file *filep)

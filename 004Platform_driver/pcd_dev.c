@@ -42,13 +42,19 @@ struct platform_device pcd_plat_dev1 = {
 	},
 };
 
+struct platform_device *pcd_plat_dev[] = {
+	&pcd_plat_dev0,
+	&pcd_plat_dev1,
+};
+
 static int __init plat_device_init(void)
 {
 	int ret;
 
 	pr_info("platform device module init start\n");
-	ret = platform_device_register( &pcd_plat_dev0 );
-	ret = platform_device_register( &pcd_plat_dev1 );
+	// ret = platform_device_register( &pcd_plat_dev0 );
+	// ret = platform_device_register( &pcd_plat_dev1 );
+	ret = platform_add_devices( pcd_plat_dev, ARRAY_SIZE( pcd_plat_dev ));
 
 	if (ret < 0 ) {
 		pr_err("platform device register failed: %d\n", ret);
