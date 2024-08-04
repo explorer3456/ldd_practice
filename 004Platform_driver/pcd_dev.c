@@ -6,20 +6,13 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "[PCD_DEV][%s] : " fmt, __func__
 
-static char pcdev0_buffer[DEV_MEM_SIZE0];
-static char pcdev1_buffer[DEV_MEM_SIZE1];
-static char pcdev2_buffer[DEV_MEM_SIZE2];
-static char pcdev3_buffer[DEV_MEM_SIZE3];
-
 struct pcdev_platform_data pcdev_priv[2] = {
 	[0] = {
-		.buffer = pcdev0_buffer,
 		.size = DEV_MEM_SIZE0,
 		.serial_number = "pcd_priv_serial-0",
 		.perm = PERM_READ_ONLY,
 	},
 	[1] = {
-		.buffer = pcdev1_buffer,
 		.size = DEV_MEM_SIZE1,
 		.serial_number = "pcd_priv_serial-1",
 		.perm = PERM_READ_WRITE,

@@ -20,11 +20,9 @@
 #define PERM_READ_WRITE	3
 
 struct pcdev_platform_data {
-	char * buffer;
 	unsigned int size;
 	const char * serial_number;
 	int perm;
-	struct cdev pcd_cdev;
 };
 
 #endif
