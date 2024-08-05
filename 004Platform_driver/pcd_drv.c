@@ -246,6 +246,26 @@ enum {
 	CONFIG_DEF_IDX,
 };
 
+struct pcd_vdata {
+	int supported_feature;
+	int additional_action;
+};
+
+struct pcd_vdata pcd_vdata_list[3] = {
+	[0] = {
+		.supported_feature = 11111,
+		.additional_action = 0x11,
+	},
+	[1] = {
+		.supported_feature = 222,
+		.additional_action = 0x22,
+	},
+	[2] = {
+		.supported_feature = 0,
+		.additional_action = 0,
+	},
+};
+
 const struct platform_device_id pcd_id_table[] = {
 	[0] = { 
 		.name = "pcd_plat_dev-v1.1",
