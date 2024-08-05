@@ -8,6 +8,7 @@
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/mod_devicetable.h>
 #include "platform.h"
 
 struct pcdev_private_data
@@ -148,6 +149,7 @@ static int pcd_probe(struct platform_device * pcdev)
 
 	// allocate user interfaces variables.
 	pcd_priv_ptr->buffer = devm_kzalloc( &pcdev->dev, (pcd_priv_ptr->pdata.size) * sizeof(pcd_priv_ptr->pdata.size), GFP_KERNEL);
+
 	if (pcd_priv_ptr->buffer == NULL) {
 		pr_err("kernel memory allocation is failed\n");
 		ret = -ENOMEM;
@@ -238,12 +240,35 @@ out:
 	return ret;
 };
 
+enum {
+	CONFIG_V10_IDX = 0,
+	CONFIG_V20_IDX,
+	CONFIG_DEF_IDX,
+};
+
+const struct platform_device_id pcd_id_table[] = {
+	[0] = { 
+		.name = "pcd_plat_dev-v1.1",
+		.driver_data = CONFIG_V10_IDX,
+	},
+	[1] = { 
+		.name = "pcd_plat_dev-v2.1",
+		.driver_data = CONFIG_V20_IDX,
+	},
+	[2] = {
+		.name = "pcd_plat_dev",
+		.driver_data = CONFIG_DEF_IDX,
+	},
+	{}
+};
+
 struct platform_driver pcd_plat_driver = {
 	.probe = pcd_probe,
 	.remove = pcd_remove,
+	.id_table = pcd_id_table,
 	.driver = {
 		.name = "pcd_plat_dev",
-	}
+	},
 };
 
 static int __init pcd_module_init(void)
