@@ -27,6 +27,32 @@ struct pcdrv_private_data
 	struct device * device_pcd;
 };
 
+enum {
+	CONFIG_V10_IDX = 0,
+	CONFIG_V20_IDX,
+	CONFIG_DEF_IDX,
+};
+
+struct pcd_vdata {
+	int supported_feature;
+	int additional_action;
+};
+
+struct pcd_vdata pcd_vdata_list[3] = {
+	[0] = {
+		.supported_feature = 11111,
+		.additional_action = 0x11,
+	},
+	[1] = {
+		.supported_feature = 222,
+		.additional_action = 0x22,
+	},
+	[2] = {
+		.supported_feature = 0,
+		.additional_action = 0,
+	},
+};
+
 struct pcdrv_private_data pcdrv_priv;
 struct pcdev_private_data pcdev_priv[NUM_OF_DEVICES];
 
@@ -195,6 +221,12 @@ static int pcd_probe(struct platform_device * pcdev)
 	pr_info("--serial number: %s\n", pcd_priv_ptr->pdata.serial_number);
 	pr_info("--permission: %d\n", pcd_priv_ptr->pdata.perm);
 
+	pr_info("driver data == \n");
+	pr_info("== device version: %s\n", pcdev->id_entry->name);
+	pr_info("== device driver data: %lu\n", pcdev->id_entry->driver_data);
+	pr_info(" supported feature: %d\n", pcd_vdata_list[pcdev->id_entry->driver_data].supported_feature);
+	pr_info(" additional operation: %d\n", pcd_vdata_list[pcdev->id_entry->driver_data].additional_action);
+
 	return 0;
 
 device_create_failed:
@@ -240,39 +272,14 @@ out:
 	return ret;
 };
 
-enum {
-	CONFIG_V10_IDX = 0,
-	CONFIG_V20_IDX,
-	CONFIG_DEF_IDX,
-};
-
-struct pcd_vdata {
-	int supported_feature;
-	int additional_action;
-};
-
-struct pcd_vdata pcd_vdata_list[3] = {
-	[0] = {
-		.supported_feature = 11111,
-		.additional_action = 0x11,
-	},
-	[1] = {
-		.supported_feature = 222,
-		.additional_action = 0x22,
-	},
-	[2] = {
-		.supported_feature = 0,
-		.additional_action = 0,
-	},
-};
 
 const struct platform_device_id pcd_id_table[] = {
 	[0] = { 
-		.name = "pcd_plat_dev-v1.1",
+		.name = "pcd_plat_dev-v1.0",
 		.driver_data = CONFIG_V10_IDX,
 	},
 	[1] = { 
-		.name = "pcd_plat_dev-v2.1",
+		.name = "pcd_plat_dev-v2.0",
 		.driver_data = CONFIG_V20_IDX,
 	},
 	[2] = {
