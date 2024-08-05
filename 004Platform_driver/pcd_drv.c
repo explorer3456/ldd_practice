@@ -232,9 +232,11 @@ static int pcd_probe(struct platform_device * pcdev)
 device_create_failed:
 	cdev_del( &pcd_priv_ptr->cdev );
 cdev_add_failed:
-	devm_kfree ( &pcdev->dev, pcd_priv_ptr->buffer );
+	// we dont need devm kfree since we are using devres API
+	// devm_kfree ( &pcdev->dev, pcd_priv_ptr->buffer );
 dev_data_free:
-	devm_kfree( &pcdev->dev, pcd_priv_ptr );
+	// we dont need devm kfree since we are using devres API
+	// devm_kfree( &pcdev->dev, pcd_priv_ptr );
 out:
 	return ret;
 };
