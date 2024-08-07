@@ -291,12 +291,32 @@ const struct platform_device_id pcd_id_table[] = {
 	{}
 };
 
+const struct of_device_id of_pcd_match_table[] = {
+	[0] = {
+		.compatible = "pcd_plat_dev-v1.0",
+		.name = "pcd_plat_dev-v1.0",
+		.data = &pcd_vdata_list[0],
+	},
+	[1] = {
+		.compatible = "pcd_plat_dev-v2.0",
+		.name = "pcd_plat_dev-v2.0",
+		.data = &pcd_vdata_list[1],
+	},
+	[2] = {
+		.compatible = "pcd_plat_dev-v3.0",
+		.name = "pcd_plat_dev-v3.0",
+		.data = &pcd_vdata_list[2],
+	},
+	{}
+};
+
 struct platform_driver pcd_plat_driver = {
 	.probe = pcd_probe,
 	.remove = pcd_remove,
 	.id_table = pcd_id_table,
 	.driver = {
 		.name = "pcd_plat_dev",
+		.of_match_table = of_pcd_match_table,
 	},
 };
 
