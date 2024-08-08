@@ -9,6 +9,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/mod_devicetable.h>
+#include <linux/of.h>
 #include "platform.h"
 
 struct pcdev_private_data
@@ -158,6 +159,8 @@ static int pcd_probe(struct platform_device * pcdev)
 	struct pcdev_private_data * pcd_priv_ptr;
 	struct pcdev_platform_data * pcd_plat_ptr; // platform device information. we need this.
 
+	pr_info("\n");
+#if 0
 	// allocate device private data since we found devices
 	pcd_priv_ptr = devm_kzalloc( &pcdev->dev, sizeof(struct pcdev_private_data), GFP_KERNEL);
 	if (pcd_priv_ptr == NULL) {
@@ -239,6 +242,8 @@ dev_data_free:
 	// devm_kfree( &pcdev->dev, pcd_priv_ptr );
 out:
 	return ret;
+#endif
+	return 0;
 };
 
 static int pcd_remove(struct platform_device *pcdev) 
@@ -292,19 +297,19 @@ const struct platform_device_id pcd_id_table[] = {
 };
 
 const struct of_device_id of_pcd_match_table[] = {
-	[0] = {
+	{
 		.compatible = "pcd_plat_dev-v1.0",
-		.name = "pcd_plat_dev-v1.0",
+		// .name = "pcd_plat_dev-v1.0",
 		.data = &pcd_vdata_list[0],
 	},
-	[1] = {
+	{
 		.compatible = "pcd_plat_dev-v2.0",
-		.name = "pcd_plat_dev-v2.0",
+		// .name = "pcd_plat_dev-v2.0",
 		.data = &pcd_vdata_list[1],
 	},
-	[2] = {
+	{
 		.compatible = "pcd_plat_dev-v3.0",
-		.name = "pcd_plat_dev-v3.0",
+		// .name = "pcd_plat_dev-v3.0",
 		.data = &pcd_vdata_list[2],
 	},
 	{}
