@@ -31,30 +31,37 @@ struct pcdrv_private_data
 enum {
 	CONFIG_V10_IDX = 0,
 	CONFIG_V20_IDX,
+	CONFIG_V30_IDX,
 	CONFIG_DEF_IDX,
 };
 
 struct pcd_vdata {
+	int version;
 	int supported_feature;
 	int additional_action;
 };
 
 struct pcd_vdata pcd_vdata_list[3] = {
 	[0] = {
+		.version = CONFIG_V10_IDX,
 		.supported_feature = 11111,
 		.additional_action = 0x11,
 	},
 	[1] = {
+		.version = CONFIG_V20_IDX,
 		.supported_feature = 222,
 		.additional_action = 0x22,
 	},
 	[2] = {
-		.supported_feature = 0,
-		.additional_action = 0,
+		.version = CONFIG_V30_IDX,
+		.supported_feature = 333,
+		.additional_action = 0x333,
 	},
 };
 
-struct pcdrv_private_data pcdrv_priv;
+struct pcdrv_private_data pcdrv_priv = {
+	.total_devices = 0,
+};
 struct pcdev_private_data pcdev_priv[NUM_OF_DEVICES];
 
 bool check_permission(fmode_t file_perm, int dev_perm)
@@ -80,6 +87,9 @@ bool check_permission(fmode_t file_perm, int dev_perm)
 
 #undef pr_fmt
 #define pr_fmt(fmt) "[PCD_DRV][%s] : " fmt, __func__
+
+#undef dev_fmt
+#define dev_fmt(fmt) "[dev pcd drv][%s]:" fmt, __func__
 
 loff_t pcd_llseek (struct file *filep, loff_t offset, int whence)
 {
@@ -154,13 +164,22 @@ struct file_operations pcd_fops = {
 static int pcd_probe(struct platform_device * pcdev) 
 {
 	int ret;
-	int id;
 
 	struct pcdev_private_data * pcd_priv_ptr;
 	struct pcdev_platform_data * pcd_plat_ptr; // platform device information. we need this.
 
+	u32 out_value;
+	const char * dt_string;
+
 	pr_info("\n");
-#if 0
+
+
+	dt_string = devm_kzalloc ( &pcdev->dev, sizeof(32) ,GFP_KERNEL);
+	if (dt_string == NULL) {
+		dev_err( &pcdev->dev, "kernel memory allocation failed \n");
+		ret = -ENOMEM;
+		goto out;
+	}
 	// allocate device private data since we found devices
 	pcd_priv_ptr = devm_kzalloc( &pcdev->dev, sizeof(struct pcdev_private_data), GFP_KERNEL);
 	if (pcd_priv_ptr == NULL) {
@@ -169,12 +188,50 @@ static int pcd_probe(struct platform_device * pcdev)
 		goto out;
 	}
 
-	// copy the platform data from platform device.
-	pcd_plat_ptr = pcdev->dev.platform_data;
-	pcd_priv_ptr->pdata.size = pcd_plat_ptr->size;
-	// sprintf(pcd_priv_ptr->pdata.serial_number, pcd_plat_ptr->serial_number);
-	pcd_priv_ptr->pdata.serial_number = pcd_plat_ptr->serial_number;
-	pcd_priv_ptr->pdata.perm = pcd_plat_ptr->perm;
+	if (pcdev->dev.platform_data == NULL) { // if device platform data is NULL, we should get platform data else where.
+
+		dev_info( &pcdev->dev, "parse dt\n");
+
+		// parse all the platform data from device tree. 
+		ret = of_property_read_u32( pcdev->dev.of_node, "udemy,buf-size", &out_value);
+		if (ret != 0 ) { 
+			dev_err( &pcdev->dev, "device tree parsing failed: %d\n", ret);
+			return ret;
+		} else {
+			pcd_priv_ptr->pdata.size = out_value;
+		}
+
+		ret = of_property_read_string_index( pcdev->dev.of_node, "udemy,serial-num", 0, \
+				&pcd_priv_ptr->pdata.serial_number );
+		if (ret != 0 ) { 
+			dev_err( &pcdev->dev, "device tree parsing failed: %d\n", ret);
+			return ret;
+		}
+
+		ret = of_property_read_string_index( pcdev->dev.of_node, "udemy,permission", 0, \
+				&dt_string);
+		if (ret != 0 ) { 
+			dev_err( &pcdev->dev, "device tree parsing failed: %d\n", ret);
+			return ret;
+		} else {
+			if (strcmp(dt_string, "RDONLY")) {
+				pcd_priv_ptr->pdata.perm = PERM_READ_ONLY;
+			}
+			if (strcmp(dt_string, "RDWR")) {
+				pcd_priv_ptr->pdata.perm = PERM_READ_WRITE;
+			}
+			if (strcmp(dt_string, "WRONLY")) {
+				pcd_priv_ptr->pdata.perm = PERM_WRITE_ONLY;
+			}
+		}
+	} else {
+		// copy the platform data from platform device.
+		pcd_plat_ptr = pcdev->dev.platform_data;
+		pcd_priv_ptr->pdata.size = pcd_plat_ptr->size;
+		// sprintf(pcd_priv_ptr->pdata.serial_number, pcd_plat_ptr->serial_number);
+		pcd_priv_ptr->pdata.serial_number = pcd_plat_ptr->serial_number;
+		pcd_priv_ptr->pdata.perm = pcd_plat_ptr->perm;
+	}
 
 	// allocate user interfaces variables.
 	pcd_priv_ptr->buffer = devm_kzalloc( &pcdev->dev, (pcd_priv_ptr->pdata.size) * sizeof(pcd_priv_ptr->pdata.size), GFP_KERNEL);
@@ -185,10 +242,8 @@ static int pcd_probe(struct platform_device * pcdev)
 		goto dev_data_free;
 	}
 
-	id = pcdev->id;
-
 	// pcdev_priv[id].dev_num = pcdrv_priv.dev_num_base + id;
-	pcd_priv_ptr->dev_num = pcdrv_priv.dev_num_base + id;
+	pcd_priv_ptr->dev_num = pcdrv_priv.dev_num_base + pcdrv_priv.total_devices;
 
 
 	cdev_init( &(pcd_priv_ptr->cdev), &pcd_fops);
@@ -201,7 +256,7 @@ static int pcd_probe(struct platform_device * pcdev)
 	}
 
 	pcdrv_priv.device_pcd = device_create( pcdrv_priv.class_pcd, NULL, pcd_priv_ptr->dev_num , NULL, \
-			"pcd-dev-create-%d", id);
+			"pcd-dev-create-%d", pcdrv_priv.total_devices);
 
 	if (IS_ERR(pcdrv_priv.device_pcd)) {
 		ret = PTR_ERR(pcdrv_priv.device_pcd);
@@ -225,10 +280,19 @@ static int pcd_probe(struct platform_device * pcdev)
 	pr_info("--permission: %d\n", pcd_priv_ptr->pdata.perm);
 
 	pr_info("driver data == \n");
-	pr_info("== device version: %s\n", pcdev->id_entry->name);
-	pr_info("== device driver data: %lu\n", pcdev->id_entry->driver_data);
-	pr_info(" supported feature: %d\n", pcd_vdata_list[pcdev->id_entry->driver_data].supported_feature);
-	pr_info(" additional operation: %d\n", pcd_vdata_list[pcdev->id_entry->driver_data].additional_action);
+
+	if (pcdev->id_entry != NULL) {
+		pr_info("== device version: %s\n", pcdev->id_entry->name);
+		pr_info("== device driver data: %lu\n", pcdev->id_entry->driver_data);
+		pr_info(" supported feature: %d\n", pcd_vdata_list[pcdev->id_entry->driver_data].supported_feature);
+		pr_info(" additional operation: %d\n", pcd_vdata_list[pcdev->id_entry->driver_data].additional_action);
+	} else { // if id entry is NULL, driver data cannot be parsed using id table.
+		pr_info("== device version: %d\n", ((struct pcd_vdata *)(pcdev->dev.driver->of_match_table->data))->version);
+		pr_info(" supported feature: %d\n", ((struct pcd_vdata *)(pcdev->dev.driver->of_match_table->data))->supported_feature);
+		pr_info(" additional operation: %d\n", ((struct pcd_vdata *)(pcdev->dev.driver->of_match_table->data))->additional_action);
+	}
+
+	pcdrv_priv.total_devices++;
 
 	return 0;
 
@@ -242,8 +306,6 @@ dev_data_free:
 	// devm_kfree( &pcdev->dev, pcd_priv_ptr );
 out:
 	return ret;
-#endif
-	return 0;
 };
 
 static int pcd_remove(struct platform_device *pcdev) 
@@ -299,17 +361,14 @@ const struct platform_device_id pcd_id_table[] = {
 const struct of_device_id of_pcd_match_table[] = {
 	{
 		.compatible = "pcd_plat_dev-v1.0",
-		// .name = "pcd_plat_dev-v1.0",
 		.data = &pcd_vdata_list[0],
 	},
 	{
 		.compatible = "pcd_plat_dev-v2.0",
-		// .name = "pcd_plat_dev-v2.0",
 		.data = &pcd_vdata_list[1],
 	},
 	{
 		.compatible = "pcd_plat_dev-v3.0",
-		// .name = "pcd_plat_dev-v3.0",
 		.data = &pcd_vdata_list[2],
 	},
 	{}
