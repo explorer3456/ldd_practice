@@ -88,9 +88,6 @@ bool check_permission(fmode_t file_perm, int dev_perm)
 #undef pr_fmt
 #define pr_fmt(fmt) "[PCD_DRV][%s] : " fmt, __func__
 
-#undef dev_fmt
-#define dev_fmt(fmt) "[dev pcd drv][%s]:" fmt, __func__
-
 loff_t pcd_llseek (struct file *filep, loff_t offset, int whence)
 {
 	pr_info("\n");
@@ -161,6 +158,74 @@ struct file_operations pcd_fops = {
 	.llseek = pcd_llseek,
 };
 
+static struct pcdev_platform_data * pcd_parse_dt(struct device * dev)
+{
+	int ret;
+	struct pcdev_platform_data * pcd_plat_ptr;
+	u32 out_value;
+	const char * dt_string;
+
+	if (dev->of_node == NULL)
+		return NULL;
+
+	dev_info( dev, "parse dt go\n");
+
+	pcd_plat_ptr = devm_kzalloc( dev, sizeof(struct pcdev_platform_data), GFP_KERNEL );
+	if (pcd_plat_ptr == NULL) {
+		dev_err( dev, "kernel memory allocation is failed\n");
+		ret = -ENOMEM;
+		goto dt_fail_out;
+	}
+
+	dt_string = devm_kzalloc ( dev, sizeof(32) ,GFP_KERNEL);
+	if (dt_string == NULL) {
+		dev_err( dev, "kernel memory allocation failed \n");
+		ret = -ENOMEM;
+		goto dt_fail_out;
+	}
+
+	// parse all the platform data from device tree. 
+	ret = of_property_read_u32( dev->of_node, "udemy,buf-size", &out_value);
+	if (ret != 0 ) { 
+		dev_err( dev, "device tree parsing failed: %d\n", ret);
+		goto dt_fail_out;
+	} else {
+		pcd_plat_ptr->size = out_value;
+	}
+
+	ret = of_property_read_string_index( dev->of_node, "udemy,serial-num", 0, \
+			&pcd_plat_ptr->serial_number );
+	if (ret != 0 ) { 
+		dev_err( dev, "device tree parsing failed: %d\n", ret);
+		goto dt_fail_out;
+	}
+
+	ret = of_property_read_string_index( dev->of_node, "udemy,permission", 0, \
+			&dt_string );
+	if (ret != 0 ) { 
+		dev_err( dev, "device tree parsing failed: %d\n", ret);
+		goto dt_fail_out;
+	} else {
+		if (strcmp(dt_string, "RDONLY")) {
+			pcd_plat_ptr->perm = PERM_READ_ONLY;
+		}
+		if (strcmp(dt_string, "RDWR")) {
+			pcd_plat_ptr->perm = PERM_READ_WRITE;
+		}
+		if (strcmp(dt_string, "WRONLY")) {
+			pcd_plat_ptr->perm = PERM_WRITE_ONLY;
+		}
+	}
+
+	return pcd_plat_ptr;
+
+dt_fail_out:
+	return ERR_PTR(ret);
+}
+
+	// parse dt and update platform data.
+
+
 static int pcd_probe(struct platform_device * pcdev) 
 {
 	int ret;
@@ -168,18 +233,8 @@ static int pcd_probe(struct platform_device * pcdev)
 	struct pcdev_private_data * pcd_priv_ptr;
 	struct pcdev_platform_data * pcd_plat_ptr; // platform device information. we need this.
 
-	u32 out_value;
-	const char * dt_string;
-
 	pr_info("\n");
 
-
-	dt_string = devm_kzalloc ( &pcdev->dev, sizeof(32) ,GFP_KERNEL);
-	if (dt_string == NULL) {
-		dev_err( &pcdev->dev, "kernel memory allocation failed \n");
-		ret = -ENOMEM;
-		goto out;
-	}
 	// allocate device private data since we found devices
 	pcd_priv_ptr = devm_kzalloc( &pcdev->dev, sizeof(struct pcdev_private_data), GFP_KERNEL);
 	if (pcd_priv_ptr == NULL) {
@@ -188,50 +243,19 @@ static int pcd_probe(struct platform_device * pcdev)
 		goto out;
 	}
 
-	if (pcdev->dev.of_node != NULL) { // if device platform data is NULL, we should get platform data else where.
-
-		dev_info( &pcdev->dev, "parse dt\n");
-
-		// parse all the platform data from device tree. 
-		ret = of_property_read_u32( pcdev->dev.of_node, "udemy,buf-size", &out_value);
-		if (ret != 0 ) { 
-			dev_err( &pcdev->dev, "device tree parsing failed: %d\n", ret);
-			return ret;
-		} else {
-			pcd_priv_ptr->pdata.size = out_value;
-		}
-
-		ret = of_property_read_string_index( pcdev->dev.of_node, "udemy,serial-num", 0, \
-				&pcd_priv_ptr->pdata.serial_number );
-		if (ret != 0 ) { 
-			dev_err( &pcdev->dev, "device tree parsing failed: %d\n", ret);
-			return ret;
-		}
-
-		ret = of_property_read_string_index( pcdev->dev.of_node, "udemy,permission", 0, \
-				&dt_string);
-		if (ret != 0 ) { 
-			dev_err( &pcdev->dev, "device tree parsing failed: %d\n", ret);
-			return ret;
-		} else {
-			if (strcmp(dt_string, "RDONLY")) {
-				pcd_priv_ptr->pdata.perm = PERM_READ_ONLY;
-			}
-			if (strcmp(dt_string, "RDWR")) {
-				pcd_priv_ptr->pdata.perm = PERM_READ_WRITE;
-			}
-			if (strcmp(dt_string, "WRONLY")) {
-				pcd_priv_ptr->pdata.perm = PERM_WRITE_ONLY;
-			}
-		}
-	} else {
-		// copy the platform data from platform device.
+	pcd_plat_ptr = pcd_parse_dt( &pcdev->dev );
+	if (pcd_plat_ptr == NULL) { // of node is NULL.
 		pcd_plat_ptr = pcdev->dev.platform_data;
-		pcd_priv_ptr->pdata.size = pcd_plat_ptr->size;
-		// sprintf(pcd_priv_ptr->pdata.serial_number, pcd_plat_ptr->serial_number);
-		pcd_priv_ptr->pdata.serial_number = pcd_plat_ptr->serial_number;
-		pcd_priv_ptr->pdata.perm = pcd_plat_ptr->perm;
+	} else if (IS_ERR(pcd_plat_ptr) ) {
+		dev_err( &pcdev->dev, "dt parse failed\n");
+		ret = PTR_ERR(pcd_plat_ptr);
+		goto out;
 	}
+
+	pcd_priv_ptr->pdata.size = pcd_plat_ptr->size;
+	// sprintf(pcd_priv_ptr->pdata.serial_number, pcd_plat_ptr->serial_number);
+	pcd_priv_ptr->pdata.serial_number = pcd_plat_ptr->serial_number;
+	pcd_priv_ptr->pdata.perm = pcd_plat_ptr->perm;
 
 	// allocate user interfaces variables.
 	pcd_priv_ptr->buffer = devm_kzalloc( &pcdev->dev, (pcd_priv_ptr->pdata.size) * sizeof(pcd_priv_ptr->pdata.size), GFP_KERNEL);
