@@ -188,7 +188,7 @@ static int pcd_probe(struct platform_device * pcdev)
 		goto out;
 	}
 
-	if (pcdev->dev.platform_data == NULL) { // if device platform data is NULL, we should get platform data else where.
+	if (pcdev->dev.of_node != NULL) { // if device platform data is NULL, we should get platform data else where.
 
 		dev_info( &pcdev->dev, "parse dt\n");
 
@@ -379,7 +379,7 @@ struct platform_driver pcd_plat_driver = {
 	.remove = pcd_remove,
 	.id_table = pcd_id_table,
 	.driver = {
-		.name = "pcd_plat_dev",
+		.name = "pcd_plat_driver",
 		.of_match_table = of_pcd_match_table,
 	},
 };
