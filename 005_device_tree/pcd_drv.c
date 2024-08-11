@@ -321,7 +321,7 @@ static int pcd_probe(struct platform_device * pcdev)
 		goto cdev_add_failed;
 	}
 
-	pcdrv_priv.device_pcd = device_create( pcdrv_priv.class_pcd, NULL, pcd_priv_ptr->dev_num , NULL, \
+	pcdrv_priv.device_pcd = device_create( pcdrv_priv.class_pcd, &pcdev->dev, pcd_priv_ptr->dev_num , NULL, \
 			"pcd-dev-create-%d", pcdrv_priv.total_devices);
 
 	if (IS_ERR(pcdrv_priv.device_pcd)) {
