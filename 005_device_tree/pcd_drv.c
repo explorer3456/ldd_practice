@@ -59,6 +59,22 @@ struct pcd_vdata pcd_vdata_list[3] = {
 	},
 };
 
+const struct of_device_id of_pcd_match_table[] = {
+	{
+		.compatible = "pcd_plat_dev-v1.0",
+		.data = &pcd_vdata_list[0],
+	},
+	{
+		.compatible = "pcd_plat_dev-v2.0",
+		.data = &pcd_vdata_list[1],
+	},
+	{
+		.compatible = "pcd_plat_dev-v3.0",
+		.data = &pcd_vdata_list[2],
+	},
+	{}
+};
+
 struct pcdrv_private_data pcdrv_priv = {
 	.total_devices = 0,
 };
@@ -232,6 +248,8 @@ static int pcd_probe(struct platform_device * pcdev)
 
 	struct pcdev_private_data * pcd_priv_ptr;
 	struct pcdev_platform_data * pcd_plat_ptr; // platform device information. we need this.
+	struct pcd_vdata * pcd_vdata_ptr;
+	const struct of_device_id * of_dev_id_ptr;
 
 	pr_info("\n");
 
@@ -243,6 +261,7 @@ static int pcd_probe(struct platform_device * pcdev)
 		goto out;
 	}
 
+	// parse platform data.
 	pcd_plat_ptr = pcd_parse_dt( &pcdev->dev );
 	if (pcd_plat_ptr == NULL) { // of node is NULL.
 		pcd_plat_ptr = pcdev->dev.platform_data;
@@ -250,6 +269,19 @@ static int pcd_probe(struct platform_device * pcdev)
 		dev_err( &pcdev->dev, "dt parse failed\n");
 		ret = PTR_ERR(pcd_plat_ptr);
 		goto out;
+	}
+
+	// get driver config data.
+	if (pcdev->id_entry != NULL) {
+		pcd_vdata_ptr = &pcd_vdata_list[pcdev->id_entry->driver_data];
+	}else{
+		of_dev_id_ptr = of_match_node( of_pcd_match_table, pcdev->dev.of_node);
+		if (of_dev_id_ptr == NULL) {
+			ret = -ENODATA;
+			goto out;
+		} else {
+			pcd_vdata_ptr = (struct pcd_vdata *)of_dev_id_ptr->data;
+		}
 	}
 
 	pcd_priv_ptr->pdata.size = pcd_plat_ptr->size;
@@ -304,17 +336,9 @@ static int pcd_probe(struct platform_device * pcdev)
 	pr_info("--permission: %d\n", pcd_priv_ptr->pdata.perm);
 
 	pr_info("driver data == \n");
-
-	if (pcdev->id_entry != NULL) {
-		pr_info("== device version: %s\n", pcdev->id_entry->name);
-		pr_info("== device driver data: %lu\n", pcdev->id_entry->driver_data);
-		pr_info(" supported feature: %d\n", pcd_vdata_list[pcdev->id_entry->driver_data].supported_feature);
-		pr_info(" additional operation: %d\n", pcd_vdata_list[pcdev->id_entry->driver_data].additional_action);
-	} else { // if id entry is NULL, driver data cannot be parsed using id table.
-		pr_info("== device version: %d\n", ((struct pcd_vdata *)(pcdev->dev.driver->of_match_table->data))->version);
-		pr_info(" supported feature: %d\n", ((struct pcd_vdata *)(pcdev->dev.driver->of_match_table->data))->supported_feature);
-		pr_info(" additional operation: %d\n", ((struct pcd_vdata *)(pcdev->dev.driver->of_match_table->data))->additional_action);
-	}
+	pr_info("== device version: %d\n", pcd_vdata_ptr->version);
+	pr_info(" supported feature: %d\n", pcd_vdata_ptr->supported_feature);
+	pr_info(" additional operation: %d\n", pcd_vdata_ptr->additional_action);
 
 	pcdrv_priv.total_devices++;
 
@@ -382,21 +406,6 @@ const struct platform_device_id pcd_id_table[] = {
 	{}
 };
 
-const struct of_device_id of_pcd_match_table[] = {
-	{
-		.compatible = "pcd_plat_dev-v1.0",
-		.data = &pcd_vdata_list[0],
-	},
-	{
-		.compatible = "pcd_plat_dev-v2.0",
-		.data = &pcd_vdata_list[1],
-	},
-	{
-		.compatible = "pcd_plat_dev-v3.0",
-		.data = &pcd_vdata_list[2],
-	},
-	{}
-};
 
 struct platform_driver pcd_plat_driver = {
 	.probe = pcd_probe,
