@@ -275,7 +275,7 @@ static int pcd_probe(struct platform_device * pcdev)
 	if (pcdev->id_entry != NULL) {
 		pcd_vdata_ptr = &pcd_vdata_list[pcdev->id_entry->driver_data];
 	}else{
-		of_dev_id_ptr = of_match_node( of_pcd_match_table, pcdev->dev.of_node);
+		of_dev_id_ptr = of_match_node( pcdev->dev.driver->of_match_table, pcdev->dev.of_node);
 		if (of_dev_id_ptr == NULL) {
 			ret = -ENODATA;
 			goto out;
