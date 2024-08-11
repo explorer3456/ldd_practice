@@ -250,6 +250,7 @@ static int pcd_probe(struct platform_device * pcdev)
 	struct pcdev_private_data * pcd_priv_ptr;
 	struct pcdev_platform_data * pcd_plat_ptr; // platform device information. we need this.
 	const struct pcd_vdata * pcd_vdata_ptr;
+	const struct of_device_id * pcd_dev_id_ptr;
 
 	pr_info("\n");
 
@@ -260,30 +261,23 @@ static int pcd_probe(struct platform_device * pcdev)
 		ret = -ENOMEM;
 		goto out;
 	}
+	
+	// lets decide whether the probe is called due to device tree or not more precisely.
+	// of_match_ptr returns NULL if config_of is not defined, otherwise, it returns the argument. 
+	// so it can be used to determine whether config_of is on or off.
+	pcd_dev_id_ptr = of_match_device( of_match_ptr(pcdev->dev.driver->of_match_table), &pcdev->dev);
 
-	// parse platform data.
-	pcd_plat_ptr = pcd_parse_dt( &pcdev->dev );
-	if (pcd_plat_ptr == NULL) { // of node is NULL.
-		pcd_plat_ptr = pcdev->dev.platform_data;
-	} else if (IS_ERR(pcd_plat_ptr) ) {
-		dev_err( &pcdev->dev, "dt parse failed\n");
-		ret = PTR_ERR(pcd_plat_ptr);
-		goto out;
-	}
+	if (pcd_dev_id_ptr != NULL) {
+		// parse platform data.
+		pcd_plat_ptr = pcd_parse_dt( &pcdev->dev );
 
-	// get driver config data.
-	if (pcdev->id_entry != NULL) {
-		pcd_vdata_ptr = &pcd_vdata_list[pcdev->id_entry->driver_data];
-	}else{
-#if 0
-		of_dev_id_ptr = of_match_node( pcdev->dev.driver->of_match_table, pcdev->dev.of_node);
-		if (of_dev_id_ptr == NULL) {
-			ret = -ENODATA;
+		if (IS_ERR(pcd_plat_ptr) ) {
+			dev_err( &pcdev->dev, "dt parse failed\n");
+			ret = PTR_ERR(pcd_plat_ptr);
 			goto out;
-		} else {
-			pcd_vdata_ptr = (struct pcd_vdata *)of_dev_id_ptr->data;
 		}
-#else
+
+		// parse driver config data.
 		pcd_vdata_ptr = of_device_get_match_data( &pcdev->dev );
 
 		if (pcd_vdata_ptr == NULL) {
@@ -291,7 +285,15 @@ static int pcd_probe(struct platform_device * pcdev)
 			ret = -ENODATA;
 			goto out;
 		}
-#endif
+	} else {
+		pcd_plat_ptr = pcdev->dev.platform_data;
+
+		if (pcdev->id_entry != NULL) {
+			pcd_vdata_ptr = &pcd_vdata_list[pcdev->id_entry->driver_data];
+		} else {
+			ret = -ENODATA;
+			goto out;
+		}
 	}
 
 	pcd_priv_ptr->pdata.size = pcd_plat_ptr->size;
