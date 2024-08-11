@@ -285,6 +285,12 @@ static int pcd_probe(struct platform_device * pcdev)
 		}
 #else
 		pcd_vdata_ptr = of_device_get_match_data( &pcdev->dev );
+
+		if (pcd_vdata_ptr == NULL) {
+			dev_err( &pcdev->dev, " There is no matched driver data\n");
+			ret = -ENODATA;
+			goto out;
+		}
 #endif
 	}
 
@@ -362,7 +368,6 @@ out:
 
 static int pcd_remove(struct platform_device *pcdev) 
 {
-	int id;
 	int ret;
 	struct pcdev_private_data * pcd_priv_ptr;
 
@@ -374,10 +379,6 @@ static int pcd_remove(struct platform_device *pcdev)
 		pr_err("invalid private data: %d\n", ret);
 		goto out;
 	}
-
-	id = pcdev->id;
-
-	pr_err("remove id: %d\n", id);
 
 	device_destroy( pcdrv_priv.class_pcd, pcd_priv_ptr->dev_num );
 	cdev_del( &pcd_priv_ptr->cdev );
