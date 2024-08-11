@@ -11,6 +11,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/of.h>
 #include "platform.h"
+#include <linux/of_device.h>
 
 struct pcdev_private_data
 {
@@ -248,8 +249,7 @@ static int pcd_probe(struct platform_device * pcdev)
 
 	struct pcdev_private_data * pcd_priv_ptr;
 	struct pcdev_platform_data * pcd_plat_ptr; // platform device information. we need this.
-	struct pcd_vdata * pcd_vdata_ptr;
-	const struct of_device_id * of_dev_id_ptr;
+	const struct pcd_vdata * pcd_vdata_ptr;
 
 	pr_info("\n");
 
@@ -275,6 +275,7 @@ static int pcd_probe(struct platform_device * pcdev)
 	if (pcdev->id_entry != NULL) {
 		pcd_vdata_ptr = &pcd_vdata_list[pcdev->id_entry->driver_data];
 	}else{
+#if 0
 		of_dev_id_ptr = of_match_node( pcdev->dev.driver->of_match_table, pcdev->dev.of_node);
 		if (of_dev_id_ptr == NULL) {
 			ret = -ENODATA;
@@ -282,6 +283,9 @@ static int pcd_probe(struct platform_device * pcdev)
 		} else {
 			pcd_vdata_ptr = (struct pcd_vdata *)of_dev_id_ptr->data;
 		}
+#else
+		pcd_vdata_ptr = of_device_get_match_data( &pcdev->dev );
+#endif
 	}
 
 	pcd_priv_ptr->pdata.size = pcd_plat_ptr->size;
