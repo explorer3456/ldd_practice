@@ -11,36 +11,9 @@
 #include <linux/mod_devicetable.h>
 #include <linux/of.h>
 #include "platform.h"
+#include "pcd_drv_sys.h"
 #include <linux/of_device.h>
 
-struct pcdev_private_data
-{
-	struct pcdev_platform_data pdata;
-	struct cdev cdev;
-	dev_t dev_num;
-	char * buffer;
-};
-
-struct pcdrv_private_data
-{
-	int total_devices;
-	dev_t dev_num_base;
-	struct class * class_pcd;
-	struct device * device_pcd;
-};
-
-enum {
-	CONFIG_V10_IDX = 0,
-	CONFIG_V20_IDX,
-	CONFIG_V30_IDX,
-	CONFIG_DEF_IDX,
-};
-
-struct pcd_vdata {
-	int version;
-	int supported_feature;
-	int additional_action;
-};
 
 struct pcd_vdata pcd_vdata_list[3] = {
 	[0] = {
@@ -81,90 +54,6 @@ struct pcdrv_private_data pcdrv_priv = {
 };
 struct pcdev_private_data pcdev_priv[NUM_OF_DEVICES];
 
-bool check_permission(fmode_t file_perm, int dev_perm)
-{
-	bool ret;
-
-	ret = false;
-
-	if (dev_perm == PERM_READ_ONLY) {
-		if ( ((file_perm & FMODE_READ) == FMODE_READ) && ((file_perm & FMODE_WRITE) != FMODE_WRITE) )
-			ret = true;
-	} else if (dev_perm == PERM_WRITE_ONLY) {
-		if ( ((file_perm & FMODE_WRITE) == FMODE_WRITE) && ((file_perm & FMODE_READ) != FMODE_READ) )
-			ret = true;
-	} else 
-		ret = true;
-
-	if (!ret)
-		pr_err("Permission denied\n");
-
-	return ret;
-}
-
-#undef pr_fmt
-#define pr_fmt(fmt) "[PCD_DRV][%s] : " fmt, __func__
-
-loff_t pcd_llseek (struct file *filep, loff_t offset, int whence)
-{
-	pr_info("\n");
-	return 0;
-};
-
-ssize_t pcd_read (struct file *filep, char __user *buf, size_t count, loff_t * f_pos)
-{
-	pr_info("\n");
-	return 0;
-};
-
-ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, loff_t * f_pos)
-{
-	pr_info("\n");
-	return 0;
-};
-
-int pcd_open (struct inode *inodep, struct file *filep)
-{
-	int ret;
-	struct pcdev_private_data * pcd_priv_ptr;
-	struct pcdev_platform_data * pdata;
-
-	ret = 0;
-
-	// get device private data.
-
-	// container_of( ptr, type, member );
-	pcd_priv_ptr = container_of(inodep->i_cdev, struct pcdev_private_data, cdev);
-
-	pr_info("get pcd priv data\n");
-	pr_info("--devnumber: %08x, major: %d, minor: %d \n", pcd_priv_ptr->dev_num,  \
-			MAJOR(pcd_priv_ptr->dev_num), MINOR(pcd_priv_ptr->dev_num));
-
-	pr_info("--size: %d\n", pcd_priv_ptr->pdata.size);
-	pr_info("--serial number: %s\n", pcd_priv_ptr->pdata.serial_number);
-	pr_info("--permission: %d\n", pcd_priv_ptr->pdata.perm);
-
-	pdata = &pcd_priv_ptr->pdata;
-
-	filep->private_data = pcd_priv_ptr;
-// bool check_permission(fmode_t file_perm, int dev_perm)
-
-	if (!check_permission( filep->f_mode, pcd_priv_ptr->pdata.perm )) {
-		pr_err("Permission denied\n");
-		ret = -EPERM;
-		goto out;
-	}
-
-	pr_info("\n");
-out:
-	return ret;
-};
-
-int pcd_release (struct inode *inodep, struct file *filep)
-{
-	pr_info("\n");
-	return 0;
-};
 
 struct file_operations pcd_fops = {
 	.owner = THIS_MODULE,
