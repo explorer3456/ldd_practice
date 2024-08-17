@@ -135,6 +135,16 @@ ssize_t serial_num_show(struct device *dev, struct device_attribute *attr, char 
 
 static DEVICE_ATTR_RO( serial_num );
 
+static struct attribute *pcd_dev_attr_arr[] = {
+	&pcd_drv_attr_max_size.attr,
+	&dev_attr_serial_num.attr,
+	NULL,
+};
+struct attribute_group pcd_dev_attr_group = {
+	.name = "pcd_dev_attr_grp",
+	.attrs = pcd_dev_attr_arr,
+};
+
 static struct pcdev_platform_data * pcd_parse_dt(struct device * dev)
 {
 	int ret;
@@ -300,6 +310,7 @@ static int pcd_probe(struct platform_device * pcdev)
 
 	dev_info( &pcdev->dev, "sysfs create of device attreibutes\n");
 
+#if 0
 	// ret = sysfs_create_file( &pcdev->dev.kobj, &pcd_drv_attr_max_size.attr );
 	ret = sysfs_create_file( &pcdrv_priv.device_pcd->kobj, &pcd_drv_attr_max_size.attr );
 	if (ret != 0) {
@@ -308,6 +319,12 @@ static int pcd_probe(struct platform_device * pcdev)
 
 	// ret = sysfs_create_file( &pcdev->dev.kobj, &dev_attr_serial_num.attr );
 	ret = sysfs_create_file( &pcdrv_priv.device_pcd->kobj, &dev_attr_serial_num.attr );
+	if (ret != 0) {
+		dev_err( &pcdev->dev, "sysfs creation failed: %d\n", ret);
+	}
+#endif
+	// sysfs group creation.
+	ret = sysfs_create_group( &pcdrv_priv.device_pcd->kobj, &pcd_dev_attr_group );
 	if (ret != 0) {
 		dev_err( &pcdev->dev, "sysfs creation failed: %d\n", ret);
 	}
