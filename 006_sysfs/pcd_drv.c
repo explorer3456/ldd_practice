@@ -277,6 +277,13 @@ static int pcd_probe(struct platform_device * pcdev)
 	pcdev->dev.driver_data = pcd_priv_ptr;
 
 	pr_info("device probed\n");
+
+	dev_info( &pcdev->dev, "sysfs create of device attreibutes\n");
+
+	ret = sysfs_create_file( &pcdev->dev.kobj, &pcd_drv_attr_max_size.attr );
+	if (ret != 0) {
+		dev_err( &pcdev->dev, "sysfs creation failed: %d\n", ret);
+	}
 	
 	// print device information
 
@@ -321,6 +328,8 @@ static int pcd_remove(struct platform_device *pcdev)
 		pr_err("invalid private data: %d\n", ret);
 		goto out;
 	}
+
+	sysfs_remove_file( &pcdev->dev.kobj, &pcd_drv_attr_max_size.attr);
 
 	device_destroy( pcdrv_priv.class_pcd, pcd_priv_ptr->dev_num );
 	cdev_del( &pcd_priv_ptr->cdev );
