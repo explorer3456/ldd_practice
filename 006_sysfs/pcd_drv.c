@@ -133,7 +133,7 @@ ssize_t serial_num_show(struct device *dev, struct device_attribute *attr, char 
 	return bytes;
 }
 
-DEVICE_ATTR_RO( serial_num );
+static DEVICE_ATTR_RO( serial_num );
 
 static struct pcdev_platform_data * pcd_parse_dt(struct device * dev)
 {
