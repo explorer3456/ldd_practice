@@ -102,6 +102,9 @@ ssize_t pcd_drv_max_size_store(struct device *dev, struct device_attribute *attr
 		goto err_store;
 	}
 
+	priv_ptr->pdata.size = resize;
+
+	return count;
 err_store:
 	return ret;
 }
