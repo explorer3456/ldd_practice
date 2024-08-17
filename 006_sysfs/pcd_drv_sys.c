@@ -14,6 +14,57 @@
 #include "pcd_drv_sys.h"
 #include <linux/of_device.h>
 
+ssize_t pcd_drv_max_size_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct pcdev_private_data * priv_ptr;
+	int bytes;
+
+	priv_ptr = dev_get_drvdata(dev); // we stored private data to dev->driver_data in probe function.
+
+	bytes = scnprintf(buf, PAGE_SIZE, "%u\n", priv_ptr->pdata.size );
+	
+	dev_info(dev, "show: %s\n", buf);
+
+	return bytes;
+}
+
+ssize_t pcd_drv_max_size_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct pcdev_private_data * priv_ptr;
+	long resize;
+	int ret;
+
+	ret = 0;
+
+	priv_ptr = dev_get_drvdata(dev);
+
+	ret = kstrtol( buf, 0, &resize);
+	if (ret != 0) {
+		dev_err( dev, "error store: %d\n", ret);
+		goto err_store;
+	}
+	dev_info(dev, "get resize data: %ld\n", resize);
+
+	priv_ptr->buffer = krealloc( priv_ptr->buffer, resize, GFP_KERNEL);
+	if (priv_ptr->buffer == NULL) {
+		dev_err(dev, "krealloc is failed\n");
+		ret = -ENOMEM;
+		goto err_store;
+	}
+
+err_store:
+	return ret;
+}
+
+struct device_attribute pcd_drv_attr_max_size = {
+	.attr = {
+		.name = "max_size",
+		.mode =  (S_IRUGO | S_IWUSR),
+	},
+	.show = pcd_drv_max_size_show,
+	.store = pcd_drv_max_size_store,
+};
+
 bool check_permission(fmode_t file_perm, int dev_perm)
 {
 	bool ret;
