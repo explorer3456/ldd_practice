@@ -71,9 +71,9 @@ ssize_t pcd_drv_max_size_show(struct device *dev, struct device_attribute *attr,
 
 	priv_ptr = dev_get_drvdata(dev); // we stored private data to dev->driver_data in probe function.
 
-	bytes = scnprintf(buf, PAGE_SIZE, "%u\n", priv_ptr->pdata.size );
+	bytes = scnprintf(buf, sizeof(int), "%u\n", priv_ptr->pdata.size );
 	
-	dev_info(dev, "show: %s\n", buf);
+	dev_info(dev, "max size show: %s\n", buf);
 
 	return bytes;
 }
@@ -114,6 +114,23 @@ struct device_attribute pcd_drv_attr_max_size = {
 	.show = pcd_drv_max_size_show,
 	.store = pcd_drv_max_size_store,
 };
+
+// using macro for device attributes.
+ssize_t serial_num_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct pcdev_private_data * priv_ptr;
+	int bytes;
+
+	priv_ptr = dev_get_drvdata(dev); // we stored private data to dev->driver_data in probe function.
+
+	bytes = scnprintf(buf, MAX_SERIAL_LENGTH, "%s\n", priv_ptr->pdata.serial_number );
+	
+	dev_info(dev, "serial num show: %s\n", buf);
+
+	return bytes;
+}
+
+DEVICE_ATTR_RO( serial_num );
 
 static struct pcdev_platform_data * pcd_parse_dt(struct device * dev)
 {
@@ -284,6 +301,11 @@ static int pcd_probe(struct platform_device * pcdev)
 	if (ret != 0) {
 		dev_err( &pcdev->dev, "sysfs creation failed: %d\n", ret);
 	}
+
+	ret = sysfs_create_file( &pcdev->dev.kobj, &dev_attr_serial_num.attr );
+	if (ret != 0) {
+		dev_err( &pcdev->dev, "sysfs creation failed: %d\n", ret);
+	}
 	
 	// print device information
 
@@ -330,6 +352,7 @@ static int pcd_remove(struct platform_device *pcdev)
 	}
 
 	sysfs_remove_file( &pcdev->dev.kobj, &pcd_drv_attr_max_size.attr);
+	sysfs_remove_file( &pcdev->dev.kobj, &dev_attr_serial_num.attr);
 
 	device_destroy( pcdrv_priv.class_pcd, pcd_priv_ptr->dev_num );
 	cdev_del( &pcd_priv_ptr->cdev );

@@ -19,6 +19,8 @@
 #define PERM_WRITE_ONLY 2
 #define PERM_READ_WRITE	3
 
+#define MAX_SERIAL_LENGTH	20
+
 struct pcdev_platform_data {
 	unsigned int size;
 	const char * serial_number;
