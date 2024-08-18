@@ -17,13 +17,15 @@
 
 
 struct gpio_device_private {
-	char label[20];
+	const char * label;
+	dev_t dev_num;
 };
 
 struct gpio_driver_private {
 	int total_devices;
 	struct class * class;
 	struct device * device;
+	dev_t dev_num_base;
 };
 
 struct gpio_driver_private gpio_drv_priv = {
@@ -38,7 +40,44 @@ const struct of_device_id gpio_sys_match_id[] = {
 
 int gpio_sys_probe(struct platform_device * pdev)
 {
+	int ret;
+	struct gpio_device_private * dev_priv_ptr;
+	int i;
+	struct device_node * child;
+
+	// since there are only few of data from gpio dt,, lets not use plat data.
+	dev_info( &pdev->dev, "probe start\n");
+
+	// number of children.
+	for_each_child_of_node( pdev->dev.of_node, child ) {
+
+		dev_priv_ptr = devm_kzalloc( &pdev->dev, sizeof(struct gpio_device_private), GFP_KERNEL);
+		if (dev_priv_ptr == NULL) {
+			dev_err( &pdev->dev, "alloc failed\n");
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		dev_priv_ptr->label = devm_kzalloc( &pdev->dev, 20, GFP_KERNEL);
+		if (dev_priv_ptr->label == NULL) {
+			dev_err( &pdev->dev, "alloc failed\n");
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		ret = of_property_read_string_index( child, "udemy,label", 0, \
+				&dev_priv_ptr->label );
+
+		gpio_drv_priv.device = device_create( gpio_drv_priv.class, &pdev->dev, 0, NULL, \
+				"gpio-dev-create-%d", gpio_drv_priv.total_devices);
+
+		// need to learn gpio node parsing method.
+		// need to implement sysfs.
+	}
+
 	return 0;
+out:
+	return ret;
 }
 
 int gpio_sys_remove(struct platform_device * pdev)
