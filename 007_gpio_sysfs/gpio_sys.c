@@ -48,6 +48,7 @@ int gpio_sys_probe(struct platform_device * pdev)
 
 	// since there are only few of data from gpio dt,, lets not use plat data.
 	dev_info( &pdev->dev, "probe start\n");
+	gpio_drv_priv.total_devices = 0;
 
 	// number of children.
 	for_each_child_of_node( pdev->dev.of_node, child ) {
@@ -66,8 +67,12 @@ int gpio_sys_probe(struct platform_device * pdev)
 			goto out;
 		}
 
-		ret = of_property_read_string_index( child, "udemy,label", 0, \
-				&dev_priv_ptr->label );
+		ret = of_property_read_string( child, "udemy,label", \
+				&(dev_priv_ptr->label) );
+		if (ret != 0 ) { // property parsing failed
+			scnprintf( dev_priv_ptr->label, 20, "%s", "unknown-%d", \
+					gpio_drv_priv.total_devices);
+		}
 
 		gpio_drv_priv.device = device_create( gpio_drv_priv.class, &pdev->dev, 0, NULL, \
 				"gpio-dev-create-%d", gpio_drv_priv.total_devices);
@@ -76,7 +81,7 @@ int gpio_sys_probe(struct platform_device * pdev)
 
 		// need to learn gpio node parsing method.
 		// need to implement sysfs.
-
+		gpio_drv_priv.total_devices++;
 	}
 
 	return 0;
