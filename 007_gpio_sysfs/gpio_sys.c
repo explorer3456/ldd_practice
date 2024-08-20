@@ -11,15 +11,37 @@
 #include <linux/mod_devicetable.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt) "[GPIO_DRV][%s] : " fmt, __func__
 
+struct gpio_desc {
+        struct gpio_device      *gdev;
+        unsigned long           flags;
+/* flag symbols are bit numbers */
+#define FLAG_REQUESTED  0
+#define FLAG_IS_OUT     1
+#define FLAG_EXPORT     2       /* protected by sysfs_lock */
+#define FLAG_SYSFS      3       /* exported via /sys/class/gpio/control */
+#define FLAG_ACTIVE_LOW 6       /* value has active low */
+#define FLAG_OPEN_DRAIN 7       /* Gpio is open drain type */
+#define FLAG_OPEN_SOURCE 8      /* Gpio is open source type */
+#define FLAG_USED_AS_IRQ 9      /* GPIO is connected to an IRQ */
+#define FLAG_IS_HOGGED  11      /* GPIO is hogged */
+#define FLAG_TRANSITORY 12      /* GPIO may lose value in sleep or reset */
+           
+        /* Connection label */
+        const char              *label;
+        /* Name of the GPIO */
+        const char              *name;
+};  
+
 
 struct gpio_device_private {
 	const char * label;
-	dev_t dev_num;
-	// gpio information shuold be in here. because, private data of device is used for fops, sysfs.. etc.
+	struct gpio_desc *gpio_desc;
 };
 
 struct gpio_driver_private {
@@ -77,10 +99,19 @@ int gpio_sys_probe(struct platform_device * pdev)
 		gpio_drv_priv.device = device_create( gpio_drv_priv.class, &pdev->dev, 0, NULL, \
 				"gpio-dev-create-%d", gpio_drv_priv.total_devices);
 
-		dev_set_drvdata( gpio_drv_priv.device, dev_priv_ptr);
+
+		dev_priv_ptr->gpio_desc = devm_gpiod_get_from_of_node( &pdev->dev, child, \
+				"udemy1-gpios", 0, GPIOD_ASIS, "lab_at");
+
+		dev_info( &pdev->dev, "%d: label:%s, name:%s,\n", gpio_drv_priv.total_devices, \
+				dev_priv_ptr->gpio_desc->label, dev_priv_ptr->gpio_desc->name);
+
 
 		// need to learn gpio node parsing method.
 		// need to implement sysfs.
+
+		dev_set_drvdata( gpio_drv_priv.device, dev_priv_ptr);
+
 		gpio_drv_priv.total_devices++;
 	}
 
