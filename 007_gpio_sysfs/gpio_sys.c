@@ -19,6 +19,7 @@
 struct gpio_device_private {
 	const char * label;
 	dev_t dev_num;
+	// gpio information shuold be in here. because, private data of device is used for fops, sysfs.. etc.
 };
 
 struct gpio_driver_private {
@@ -71,8 +72,11 @@ int gpio_sys_probe(struct platform_device * pdev)
 		gpio_drv_priv.device = device_create( gpio_drv_priv.class, &pdev->dev, 0, NULL, \
 				"gpio-dev-create-%d", gpio_drv_priv.total_devices);
 
+		dev_set_drvdata( gpio_drv_priv.device, dev_priv_ptr);
+
 		// need to learn gpio node parsing method.
 		// need to implement sysfs.
+
 	}
 
 	return 0;
