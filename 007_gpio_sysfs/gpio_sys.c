@@ -92,7 +92,7 @@ int gpio_sys_probe(struct platform_device * pdev)
 		ret = of_property_read_string( child, "udemy,label", \
 				&(dev_priv_ptr->label) );
 		if (ret != 0 ) { // property parsing failed
-			scnprintf( dev_priv_ptr->label, 20, "%s", "unknown-%d", \
+			scnprintf( dev_priv_ptr->label, 20, "unknown-%d", \
 					gpio_drv_priv.total_devices);
 		}
 
@@ -100,8 +100,10 @@ int gpio_sys_probe(struct platform_device * pdev)
 				"gpio-dev-create-%d", gpio_drv_priv.total_devices);
 
 
-		dev_priv_ptr->gpio_desc = devm_gpiod_get_from_of_node( &pdev->dev, child, \
-				"udemy1-gpios", 0, GPIOD_ASIS, "lab_at");
+		// dev_priv_ptr->gpio_desc = devm_gpiod_get_from_of_node( &pdev->dev, child,
+				// "udemy1-gpios", 0, GPIOD_ASIS, "lab_at");
+		dev_priv_ptr->gpio_desc = devm_fwnode_get_gpiod_from_child( &pdev->dev, "udemy1", \
+				&child->fwnode, GPIOD_ASIS, "labb");
 
 		dev_info( &pdev->dev, "%d: label:%s, name:%s,\n", gpio_drv_priv.total_devices, \
 				dev_priv_ptr->gpio_desc->label, dev_priv_ptr->gpio_desc->name);
