@@ -74,10 +74,10 @@ ssize_t direction_show(struct device * dev, struct device_attribute *attr, char 
 	ret = gpiod_get_direction( gpio_desc_ptr );
 
 	if (ret == 0) {
-		bytes = scnprintf(buf, sizeof(char)*3, "%s\n", "out");
+		bytes = scnprintf(buf, sizeof(char)*4, "%s\n", "out");
 		ret = bytes;
 	} else if (ret == 1) {
-		bytes = scnprintf(buf, sizeof(char)*2, "%s\n", "in");
+		bytes = scnprintf(buf, sizeof(char)*3, "%s\n", "in");
 		ret = bytes; 
 	} else {
 		dev_err( (const struct device *)dev, "cannot get gpio direction\n");
@@ -192,6 +192,12 @@ int gpio_sys_probe(struct platform_device * pdev)
 		if (ret != 0 ) {
 			dev_err( &pdev->dev, "gpio direction setting failed: %d\n", i);
 			goto out;
+		}
+
+		// register sysfs.
+		ret = sysfs_create_file( &(gpio_drv_priv.devices[i])->kobj, &dev_attr_direction.attr);
+		if (ret != 0 ) {
+			dev_err( &pdev->dev, "sysfs creation failed\n");
 		}
 
 		i++;
