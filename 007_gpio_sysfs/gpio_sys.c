@@ -38,7 +38,6 @@ struct gpio_desc {
         const char              *name;
 };  
 
-
 struct gpio_device_private {
 	const char * label;
 	struct gpio_desc *gpio_desc;
@@ -60,6 +59,71 @@ const struct of_device_id gpio_sys_match_id[] = {
 	[0] = {
 		.compatible = "udemy,gpio-drv",
 	},
+};
+
+ssize_t direction_show(struct device * dev, struct device_attribute *attr, char *buf)
+{
+	struct gpio_device_private * dev_priv_ptr;
+	struct gpio_desc * gpio_desc_ptr;
+	int ret;
+	int bytes;
+
+	dev_priv_ptr = dev_get_drvdata((const struct device * )dev);
+	gpio_desc_ptr = dev_priv_ptr->gpio_desc;
+
+	ret = gpiod_get_direction( gpio_desc_ptr );
+
+	if (ret == 0) {
+		bytes = scnprintf(buf, sizeof(char)*3, "%s\n", "out");
+		ret = bytes;
+	} else if (ret == 1) {
+		bytes = scnprintf(buf, sizeof(char)*2, "%s\n", "in");
+		ret = bytes; 
+	} else {
+		dev_err( (const struct device *)dev, "cannot get gpio direction\n");
+	}
+
+	return ret;
+}
+
+ssize_t direction_store(struct device * dev, struct device_attribute *attr, const char *buf, size_t count) 
+{
+	struct gpio_device_private * dev_priv_ptr;
+	struct gpio_desc * gpio_desc_ptr;
+	int ret;
+
+	dev_priv_ptr = dev_get_drvdata(dev);
+	gpio_desc_ptr = dev_priv_ptr->gpio_desc;
+
+	if ( strcmp(buf, "in") ) {
+		ret = gpiod_direction_input( gpio_desc_ptr );
+		if (ret != 0) {
+			dev_err( dev, "input setting error\n");
+			goto store_out;
+		} else 
+			ret = count;
+	} else if ( strcmp(buf, "out") ) {
+		ret = gpiod_direction_output( gpio_desc_ptr, 0);
+		if (ret != 0) {
+			dev_err( dev, "input setting error\n");
+			goto store_out;
+		} else 
+			ret = count;
+	} else {
+		dev_err(dev, "unknown store argument\n");
+		ret = -EINVAL;
+	}
+store_out:
+	return ret;
+}
+
+struct device_attribute dev_attr_direction = {
+	.attr = {
+		.name = "direction",
+		.mode = (S_IRUGO | S_IWUSR),
+	},
+	.show = direction_show,
+	.store = direction_store,
 };
 
 int gpio_sys_probe(struct platform_device * pdev)
