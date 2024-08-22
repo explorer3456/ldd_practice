@@ -47,7 +47,8 @@ struct gpio_device_private {
 struct gpio_driver_private {
 	int total_devices;
 	struct class * class;
-	struct device * device;
+
+	struct device **devices;
 	dev_t dev_num_base;
 };
 
@@ -70,7 +71,19 @@ int gpio_sys_probe(struct platform_device * pdev)
 
 	// since there are only few of data from gpio dt,, lets not use plat data.
 	dev_info( &pdev->dev, "probe start\n");
-	gpio_drv_priv.total_devices = 0;
+	
+	gpio_drv_priv.total_devices = of_get_child_count( pdev->dev.of_node );
+
+	gpio_drv_priv.devices = devm_kzalloc( &pdev->dev, sizeof(struct device *) * (gpio_drv_priv.total_devices), \
+			GFP_KERNEL);
+
+	if (gpio_drv_priv.devices == NULL) {
+		dev_err( &pdev->dev, "alloc failed\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	i = 0;
 
 	// number of children.
 	for_each_child_of_node( pdev->dev.of_node, child ) {
@@ -93,11 +106,11 @@ int gpio_sys_probe(struct platform_device * pdev)
 				&(dev_priv_ptr->label) );
 		if (ret != 0 ) { // property parsing failed
 			scnprintf( dev_priv_ptr->label, 20, "unknown-%d", \
-					gpio_drv_priv.total_devices);
+					i);
 		}
 
-		gpio_drv_priv.device = device_create( gpio_drv_priv.class, &pdev->dev, 0, NULL, \
-				"gpio-dev-create-%d", gpio_drv_priv.total_devices);
+		gpio_drv_priv.devices[i] = device_create( gpio_drv_priv.class, &pdev->dev, 0, NULL, \
+				"gpio-dev-create-%d", i);
 
 
 		// dev_priv_ptr->gpio_desc = devm_gpiod_get_from_of_node( &pdev->dev, child,
@@ -105,16 +118,19 @@ int gpio_sys_probe(struct platform_device * pdev)
 		dev_priv_ptr->gpio_desc = devm_fwnode_get_gpiod_from_child( &pdev->dev, "udemy1", \
 				&child->fwnode, GPIOD_ASIS, "labb");
 
-		dev_info( &pdev->dev, "%d: label:%s, name:%s,\n", gpio_drv_priv.total_devices, \
+		dev_info( &pdev->dev, "%d: label:%s, name:%s,\n", i, \
 				dev_priv_ptr->gpio_desc->label, dev_priv_ptr->gpio_desc->name);
 
+		dev_set_drvdata( gpio_drv_priv.devices[i], dev_priv_ptr);
 
-		// need to learn gpio node parsing method.
-		// need to implement sysfs.
+		// configure default gpio direction.
+		ret = gpiod_direction_output_raw( dev_priv_ptr->gpio_desc, 0);
+		if (ret != 0 ) {
+			dev_err( &pdev->dev, "gpio direction setting failed: %d\n", i);
+			goto out;
+		}
 
-		dev_set_drvdata( gpio_drv_priv.device, dev_priv_ptr);
-
-		gpio_drv_priv.total_devices++;
+		i++;
 	}
 
 	return 0;
@@ -124,6 +140,14 @@ out:
 
 int gpio_sys_remove(struct platform_device * pdev)
 {
+	int i;
+	
+	dev_info( &pdev->dev, "remove \n");
+
+	for (i=0; i < gpio_drv_priv.total_devices; i++) {
+		device_unregister( gpio_drv_priv.devices[i] );
+	}
+
 	return 0;
 }
 
