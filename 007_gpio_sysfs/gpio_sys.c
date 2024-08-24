@@ -99,14 +99,12 @@ ssize_t direction_store(struct device * dev, struct device_attribute *attr, cons
 		ret = gpiod_direction_input( gpio_desc_ptr );
 		if (ret != 0) {
 			dev_err( dev, "input setting error\n");
-			goto store_out;
 		} else 
 			ret = count;
 	} else if ( sysfs_streq(buf, "out") ) {
 		ret = gpiod_direction_output( gpio_desc_ptr, 0);
 		if (ret != 0) {
 			dev_err( dev, "input setting error\n");
-			goto store_out;
 		} else 
 			ret = count;
 	} else {
