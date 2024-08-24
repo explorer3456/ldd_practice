@@ -126,6 +126,78 @@ struct device_attribute dev_attr_direction = {
 	.store = direction_store,
 };
 
+ssize_t gpio_value_show(struct device * dev, struct device_attribute *attr, char *buf)
+{
+	struct gpio_device_private * dev_priv_ptr;
+	struct gpio_desc * gpio_desc_ptr;
+	int ret;
+	int value;
+
+	dev_priv_ptr = dev_get_drvdata((const struct device * )dev);
+	gpio_desc_ptr = dev_priv_ptr->gpio_desc;
+
+	value = gpiod_get_value(gpio_desc_ptr);
+
+	ret = scnprintf(buf, sizeof(int), "%d\n", value);
+
+	return ret;
+};
+
+ssize_t gpio_value_store(struct device * dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct gpio_device_private * dev_priv_ptr;
+	struct gpio_desc * gpio_desc_ptr;
+	int ret;
+	long value;
+
+	dev_priv_ptr = dev_get_drvdata((const struct device * )dev);
+	gpio_desc_ptr = dev_priv_ptr->gpio_desc;
+
+	ret = kstrtol(buf, 0, &value);
+	if (ret != 0) {
+		dev_err( dev, "cannot convert kstrtol\n");
+		return ret;
+	}
+
+	if (value != 0)
+		value = 1;
+	else
+		value = 0;
+
+	gpiod_set_value( gpio_desc_ptr, value );
+
+	return count;
+}
+
+ssize_t gpio_label_show(struct device * dev, struct device_attribute *attr, char *buf)
+{
+	struct gpio_device_private * dev_priv_ptr;
+	struct gpio_desc * gpio_desc_ptr;
+	int ret;
+	int bytes;
+	int value;
+
+	dev_priv_ptr = dev_get_drvdata((const struct device * )dev);
+	gpio_desc_ptr = dev_priv_ptr->gpio_desc;
+
+	ret = scnprintf(buf, 20, "%s\n", gpio_desc_ptr->label);
+
+	return ret;
+}
+ssize_t gpio_label_store(struct device * dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct gpio_device_private * dev_priv_ptr;
+	struct gpio_desc * gpio_desc_ptr;
+	int ret;
+	int value;
+
+	dev_priv_ptr = dev_get_drvdata((const struct device * )dev);
+	gpio_desc_ptr = dev_priv_ptr->gpio_desc;
+}
+
+static DEVICE_ATTR_RW(gpio_value);
+static DEVICE_ATTR_RO(gpio_label);
+
 int gpio_sys_probe(struct platform_device * pdev)
 {
 	int ret;
@@ -180,7 +252,7 @@ int gpio_sys_probe(struct platform_device * pdev)
 		// dev_priv_ptr->gpio_desc = devm_gpiod_get_from_of_node( &pdev->dev, child,
 				// "udemy1-gpios", 0, GPIOD_ASIS, "lab_at");
 		dev_priv_ptr->gpio_desc = devm_fwnode_get_gpiod_from_child( &pdev->dev, "udemy1", \
-				&child->fwnode, GPIOD_ASIS, "labb");
+				&child->fwnode, GPIOD_ASIS, dev_priv_ptr->label);
 
 		dev_info( &pdev->dev, "%d: label:%s, name:%s,\n", i, \
 				dev_priv_ptr->gpio_desc->label, dev_priv_ptr->gpio_desc->name);
@@ -196,6 +268,14 @@ int gpio_sys_probe(struct platform_device * pdev)
 
 		// register sysfs.
 		ret = sysfs_create_file( &(gpio_drv_priv.devices[i])->kobj, &dev_attr_direction.attr);
+		if (ret != 0 ) {
+			dev_err( &pdev->dev, "sysfs creation failed\n");
+		}
+		ret = sysfs_create_file( &(gpio_drv_priv.devices[i])->kobj, &dev_attr_gpio_value.attr);
+		if (ret != 0 ) {
+			dev_err( &pdev->dev, "sysfs creation failed\n");
+		}
+		ret = sysfs_create_file( &(gpio_drv_priv.devices[i])->kobj, &dev_attr_gpio_label.attr);
 		if (ret != 0 ) {
 			dev_err( &pdev->dev, "sysfs creation failed\n");
 		}
