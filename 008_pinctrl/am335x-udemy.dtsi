@@ -1,0 +1,74 @@
+
+
+
+/ {
+	pcdev-0 {
+		compatible = "pcd_plat_dev-v1.0";
+		udemy,buf-size = <0x8>;
+		udemy,serial-num = "pcdev-dt-0";
+		udemy,permission = "RDONLY";
+	};
+	pcdev-1 {
+		compatible = "pcd_plat_dev-v2.0";
+		udemy,buf-size = <0x10>;
+		udemy,serial-num = "pcdev-dt-1";
+		udemy,permission = "RDWR";
+	};
+	pcdev-2 {
+		compatible = "pcd_plat_dev-v3.0";
+		udemy,buf-size = <0x20>;
+		udemy,serial-num = "pcdev-dt-2";
+		udemy,permission = "WRONLY";
+	};
+
+	udemy_gpio {
+		compatible = "udemy,gpio-drv";
+
+		pinctrl-single,names = "default", "main", "sub";
+		pinctrl-0 = <&udemy_main>;
+		pinctrl-1 = <&udemy_main>;
+		pinctrl-2 = <&udemy_sub>;
+
+		u_gpio_1 {
+			udemy,label = "gpio1_label";
+			udemy1-gpios = <&gpio2 2 GPIO_ACTIVE_HIGH>;
+		};
+		u_gpio_2 {
+			udemy,label = "gpio2_label";
+			udemy1-gpios = <&gpio2 3 GPIO_ACTIVE_HIGH>;
+		};
+		u_gpio_3 {
+			udemy,label = "gpio3_label";
+			udemy1-gpios = <&gpio2 4 GPIO_ACTIVE_HIGH>;
+		};
+		u_led1 {
+			udemy,label = "led1_label";
+			udemy1-gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
+		};
+		u_led2 {
+			udemy,label = "led2_label";
+			udemy1-gpios = <&gpio1 22 GPIO_ACTIVE_HIGH>;
+		};
+		u_led3 {
+			udemy,label = "led3_label";
+			udemy1-gpios = <&gpio1 23 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&am33xx_pinmux {
+	udemy_main:udemy_gpio_main_mode {
+                 pinctrl-single,pins = <
+                         AM33XX_PADCONF(AM335X_PIN_GPMC_A5, PIN_OUTPUT, MUX_MODE7)                                                        
+                         AM33XX_PADCONF(AM335X_PIN_GPMC_A6, PIN_OUTPUT, MUX_MODE7)                                                        
+                         AM33XX_PADCONF(AM335X_PIN_GPMC_A7, PIN_OUTPUT, MUX_MODE7) >;
+	};
+
+	udemy_sub:udemy_gpio_sub_mode {
+                 pinctrl-single,pins = <
+                         AM33XX_PADCONF(AM335X_PIN_GPMC_A5, PIN_OUTPUT, MUX_MODE0)                                                        
+                         AM33XX_PADCONF(AM335X_PIN_GPMC_A6, PIN_OUTPUT, MUX_MODE0)                                                        
+                         AM33XX_PADCONF(AM335X_PIN_GPMC_A7, PIN_OUTPUT, MUX_MODE0) >;
+	};
+};
+
