@@ -216,7 +216,8 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 	pcd_priv = (struct pcdev_private_data *)filep->private_data;
 
 	// spin_lock_irqsave( &pcd_priv->pcd_lock, flag);
-	mutex_lock( &pcd_priv->pcd_mutex );
+	if (mutex_lock_interruptible( &pcd_priv->pcd_mutex ) )
+		return -EINTR;
 
 	pr_info("user request: %zu\n", count);
 	pr_info("current file position: %lld\n", *f_pos);
