@@ -7,6 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 
 #define DEV_MEM_SIZE	8
 
@@ -20,7 +21,6 @@
 #define PERM_READ_ONLY	1
 #define PERM_WRITE_ONLY 2
 #define PERM_READ_WRITE	3
-
 
 static char pcdev0_buffer[DEV_MEM_SIZE0];
 static char pcdev1_buffer[DEV_MEM_SIZE1];
@@ -36,6 +36,7 @@ struct pcdev_private_data {
 	int perm;
 	struct cdev pcd_cdev;
 	spinlock_t pcd_lock;
+	struct mutex pcd_mutex;
 };
 
 struct pcdrv_private_data {
@@ -214,7 +215,8 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 
 	pcd_priv = (struct pcdev_private_data *)filep->private_data;
 
-	spin_lock_irqsave( &pcd_priv->pcd_lock, flag);
+	// spin_lock_irqsave( &pcd_priv->pcd_lock, flag);
+	mutex_lock( &pcd_priv->pcd_mutex );
 
 	pr_info("user request: %zu\n", count);
 	pr_info("current file position: %lld\n", *f_pos);
@@ -257,7 +259,8 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 
 	pr_info("updated file position to : %lld\n", *f_pos);
 
-	spin_unlock_irqrestore( &pcd_priv->pcd_lock, flag);
+	// spin_unlock_irqrestore( &pcd_priv->pcd_lock, flag);
+	mutex_unlock( &pcd_priv->pcd_mutex );
 
 	return count_adj;
 };
@@ -338,6 +341,7 @@ static int __init pcd_module_init(void)
 		pcdrv_priv.pcdev_priv[i].pcd_cdev.owner = THIS_MODULE;
 
 		spin_lock_init(&pcdrv_priv.pcdev_priv[i].pcd_lock);
+		mutex_init(&pcdrv_priv.pcdev_priv[i].pcd_mutex);
 
 		/* we want to register char device to VFS. */ 
 		ret = cdev_add( &pcdrv_priv.pcdev_priv[i].pcd_cdev, pcdrv_priv.device_number + i, 1);
