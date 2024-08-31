@@ -6,6 +6,7 @@
 #include <uapi/linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/spinlock.h>
 
 #define DEV_MEM_SIZE	8
 
@@ -34,6 +35,7 @@ struct pcdev_private_data {
 	const char * serial_number;
 	int perm;
 	struct cdev pcd_cdev;
+	spinlock_t pcd_lock;
 };
 
 struct pcdrv_private_data {
@@ -207,9 +209,12 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 {
 	int count_adj;
 	int write_bytes;
+	unsigned long flag;
 	struct pcdev_private_data *pcd_priv;
 
 	pcd_priv = (struct pcdev_private_data *)filep->private_data;
+
+	spin_lock_irqsave( &pcd_priv->pcd_lock, flag);
 
 	pr_info("user request: %zu\n", count);
 	pr_info("current file position: %lld\n", *f_pos);
@@ -231,6 +236,7 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 
 	// if f_pos is end of file, dont access to that location.
 	if ( ((*f_pos) < (pcd_priv->size)) ) {
+
 		write_bytes = copy_from_user( (void *)pcd_priv->buffer + (*f_pos), buf, count_adj);
 
 		// there is some error. Address error.
@@ -250,6 +256,8 @@ ssize_t pcd_write (struct file *filep, const char __user *buf, size_t count, lof
 	*f_pos = *f_pos + count_adj;
 
 	pr_info("updated file position to : %lld\n", *f_pos);
+
+	spin_unlock_irqrestore( &pcd_priv->pcd_lock, flag);
 
 	return count_adj;
 };
@@ -328,6 +336,8 @@ static int __init pcd_module_init(void)
 		/* we want to register our device to VFS. That is why we initialize cdev. */
 		cdev_init( &(pcdrv_priv.pcdev_priv[i].pcd_cdev), &pcd_fops);
 		pcdrv_priv.pcdev_priv[i].pcd_cdev.owner = THIS_MODULE;
+
+		spin_lock_init(&pcdrv_priv.pcdev_priv[i].pcd_lock);
 
 		/* we want to register char device to VFS. */ 
 		ret = cdev_add( &pcdrv_priv.pcdev_priv[i].pcd_cdev, pcdrv_priv.device_number + i, 1);
